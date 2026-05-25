@@ -14,6 +14,11 @@
 #include <SegLoad.h>
 #include <Resources.h>
 #include <string.h>
+#include <stdio.h>
+
+#include "printers.h"
+#include "ui.h"
+#include "config.h"
 
 enum {
     kMenuApple   = 128,
@@ -31,8 +36,14 @@ enum {
     kFileQuit    = 3
 };
 
-static WindowPtr gWindow;
-static Boolean   gQuit = false;
+static WindowPtr   gWindow;
+static Boolean      gQuit = false;
+static int          gCurrentView = kViewList;
+static int          gSelectedPrinter = 0;
+static PrinterList  gPrinterList;
+static AppConfig    gConfig;
+static unsigned long gNextPollTime = 0;
+static char         gStatusMessage[80];
 
 static void InitToolbox(void) {
     InitGraf(&qd.thePort);
@@ -53,34 +64,59 @@ static void SetupMenus(void) {
     DrawMenuBar();
 }
 
-static void DrawContent(WindowPtr window) {
-    GrafPtr savePort;
-    Rect    r;
+static void LoadTestData(void) {
+    PrinterList_Init(&gPrinterList);
+    gPrinterList.count = 4;
 
-    GetPort(&savePort);
-    SetPort(window);
-    r = window->portRect;
-    EraseRect(&r);
+    strcpy(gPrinterList.printers[0].id, "mk4");
+    strcpy(gPrinterList.printers[0].name, "Prusa MK4");
+    strcpy(gPrinterList.printers[0].type, "prusalink");
+    strcpy(gPrinterList.printers[0].state, "printing");
+    gPrinterList.printers[0].progress = 78;
+    strcpy(gPrinterList.printers[0].job, "benchy.gcode");
+    gPrinterList.printers[0].time_remaining = 4320;
+    gPrinterList.printers[0].nozzle_temp = 215;
+    gPrinterList.printers[0].nozzle_target = 215;
+    gPrinterList.printers[0].bed_temp = 60;
+    gPrinterList.printers[0].bed_target = 60;
 
-    TextFont(3); /* Geneva */
-    TextSize(12);
-    TextFace(bold);
-    MoveTo(10, 25);
-    DrawString("\pPrintWatch");
+    strcpy(gPrinterList.printers[1].id, "voron");
+    strcpy(gPrinterList.printers[1].name, "Voron 2.4");
+    strcpy(gPrinterList.printers[1].type, "moonraker");
+    strcpy(gPrinterList.printers[1].state, "idle");
+    gPrinterList.printers[1].nozzle_temp = 22;
+    gPrinterList.printers[1].bed_temp = 21;
 
-    TextSize(9);
-    TextFace(0);
-    MoveTo(10, 40);
-    DrawString("\p3D Printer Monitor for Macintosh");
+    strcpy(gPrinterList.printers[2].id, "ender");
+    strcpy(gPrinterList.printers[2].name, "Ender 3 K1");
+    strcpy(gPrinterList.printers[2].type, "moonraker");
+    strcpy(gPrinterList.printers[2].state, "printing");
+    gPrinterList.printers[2].progress = 18;
+    strcpy(gPrinterList.printers[2].job, "bracket.gcode");
+    gPrinterList.printers[2].time_remaining = 16200;
+    gPrinterList.printers[2].nozzle_temp = 210;
+    gPrinterList.printers[2].nozzle_target = 210;
+    gPrinterList.printers[2].bed_temp = 60;
+    gPrinterList.printers[2].bed_target = 60;
 
-    MoveTo(10, 65);
-    DrawString("\pWaiting for printer data...");
+    strcpy(gPrinterList.printers[3].id, "xl");
+    strcpy(gPrinterList.printers[3].name, "Prusa XL");
+    strcpy(gPrinterList.printers[3].type, "prusalink");
+    strcpy(gPrinterList.printers[3].state, "attention");
+    strcpy(gPrinterList.printers[3].error, "Filament change needed");
+    gPrinterList.printers[3].nozzle_temp = 215;
+    gPrinterList.printers[3].nozzle_target = 215;
+    gPrinterList.printers[3].bed_temp = 60;
+    gPrinterList.printers[3].bed_target = 60;
+}
 
-    /* Draw a separator line */
-    MoveTo(10, 50);
-    LineTo(r.right - 10, 50);
-
-    SetPort(savePort);
+static void DrawWindow(WindowPtr window) {
+    if (gCurrentView == kViewList) {
+        UI_DrawListView(window, &gPrinterList, gSelectedPrinter);
+    } else {
+        UI_DrawDetailView(window, &gPrinterList.printers[gSelectedPrinter]);
+    }
+    UI_DrawStatusBar(window, gStatusMessage);
 }
 
 static void HandleMenuChoice(long menuChoice) {
@@ -100,26 +136,50 @@ static void HandleMenuChoice(long menuChoice) {
 
         case kMenuFile:
             if (menuItem == kFileRefresh) {
-                /* Refresh will trigger a poll once networking is wired up */
-                SetPort(gWindow);
-                EraseRect(&gWindow->portRect);
-                DrawContent(gWindow);
+                gNextPollTime = 0;
+                strcpy(gStatusMessage, "Refreshing...");
+                UI_DrawStatusBar(gWindow, gStatusMessage);
             } else if (menuItem == kFileQuit) {
                 gQuit = true;
             }
             break;
 
         case kMenuOptions:
-            /* Dialogs deferred to Phase 6 */
             break;
     }
 
     HiliteMenu(0);
 }
 
+static void HandleContentClick(Point localPt) {
+    if (gCurrentView == kViewList) {
+        int row = UI_HitTestRow(localPt.v, gPrinterList.count);
+        if (row >= 0) {
+            if (row == gSelectedPrinter) {
+                /* Double-click-like: open detail */
+                gCurrentView = kViewDetail;
+                UI_InvalidateAll(gWindow);
+            } else {
+                int oldSel = gSelectedPrinter;
+                gSelectedPrinter = row;
+                UI_InvalidateRow(gWindow, oldSel);
+                UI_InvalidateRow(gWindow, gSelectedPrinter);
+            }
+        }
+    } else {
+        /* In detail view, clicking in the bottom area goes back */
+        Rect r = gWindow->portRect;
+        if (localPt.v > r.bottom - kStatusBarHeight - 20) {
+            gCurrentView = kViewList;
+            UI_InvalidateAll(gWindow);
+        }
+    }
+}
+
 static void HandleMouseDown(EventRecord *event) {
     WindowPtr window;
     short     part;
+    Point     localPt;
 
     part = FindWindow(event->where, &window);
 
@@ -141,6 +201,10 @@ static void HandleMouseDown(EventRecord *event) {
         case inContent:
             if (window != FrontWindow()) {
                 SelectWindow(window);
+            } else {
+                localPt = event->where;
+                GlobalToLocal(&localPt);
+                HandleContentClick(localPt);
             }
             break;
 
@@ -155,6 +219,38 @@ static void HandleKeyDown(EventRecord *event) {
 
     if (event->modifiers & cmdKey) {
         HandleMenuChoice(MenuKey(key));
+        return;
+    }
+
+    if (gCurrentView == kViewList) {
+        switch (key) {
+            case 0x1E: /* up arrow */
+                if (gSelectedPrinter > 0) {
+                    int oldSel = gSelectedPrinter;
+                    gSelectedPrinter--;
+                    UI_InvalidateRow(gWindow, oldSel);
+                    UI_InvalidateRow(gWindow, gSelectedPrinter);
+                }
+                break;
+            case 0x1F: /* down arrow */
+                if (gSelectedPrinter < gPrinterList.count - 1) {
+                    int oldSel = gSelectedPrinter;
+                    gSelectedPrinter++;
+                    UI_InvalidateRow(gWindow, oldSel);
+                    UI_InvalidateRow(gWindow, gSelectedPrinter);
+                }
+                break;
+            case 0x0D: /* return */
+            case 0x03: /* enter */
+                gCurrentView = kViewDetail;
+                UI_InvalidateAll(gWindow);
+                break;
+        }
+    } else {
+        if (key == 0x1B) { /* escape */
+            gCurrentView = kViewList;
+            UI_InvalidateAll(gWindow);
+        }
     }
 }
 
@@ -162,7 +258,7 @@ static void HandleUpdate(EventRecord *event) {
     WindowPtr window = (WindowPtr)event->message;
 
     BeginUpdate(window);
-    DrawContent(window);
+    DrawWindow(window);
     EndUpdate(window);
 }
 
@@ -171,12 +267,17 @@ int main(void) {
 
     InitToolbox();
     SetupMenus();
+    Config_Load(&gConfig);
 
     gWindow = GetNewWindow(128, NULL, (WindowPtr)-1);
     SetPort(gWindow);
 
+    LoadTestData();
+    sprintf(gStatusMessage, "Proxy: %s:%d  Poll: %ds",
+            gConfig.proxyIP, gConfig.proxyPort, gConfig.pollIntervalSecs);
+
     while (!gQuit) {
-        if (WaitNextEvent(everyEvent, &event, 30, NULL)) {
+        if (WaitNextEvent(everyEvent, &event, 15, NULL)) {
             switch (event.what) {
                 case mouseDown:
                     HandleMouseDown(&event);
