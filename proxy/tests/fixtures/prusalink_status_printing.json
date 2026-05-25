@@ -1,0 +1,20 @@
+{
+  "printer": {
+    "state": "PRINTING",
+    "temp_nozzle": 215.4,
+    "target_nozzle": 215.0,
+    "temp_bed": 60.1,
+    "target_bed": 60.0,
+    "axis_z": 12.4,
+    "flow": 100,
+    "speed": 100,
+    "fan_hotend": 6553,
+    "fan_print": 6553
+  },
+  "job": {
+    "id": 43,
+    "progress": 34.5,
+    "time_remaining": 4320,
+    "time_printing": 2210
+  }
+}

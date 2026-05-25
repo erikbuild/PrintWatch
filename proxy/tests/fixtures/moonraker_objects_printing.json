@@ -1,0 +1,37 @@
+{
+  "result": {
+    "eventtime": 1706842847.352,
+    "status": {
+      "print_stats": {
+        "filename": "voron_part.gcode",
+        "state": "printing",
+        "total_duration": 4823.7,
+        "print_duration": 4651.2,
+        "filament_used": 14823.4,
+        "message": "",
+        "info": {
+          "current_layer": 142,
+          "total_layer": 380
+        }
+      },
+      "virtual_sdcard": {
+        "file_path": "/home/pi/printer_data/gcodes/voron_part.gcode",
+        "progress": 0.374,
+        "is_active": true,
+        "file_position": 1485920,
+        "file_size": 3972048
+      },
+      "extruder": {
+        "temperature": 245.8,
+        "target": 245.0
+      },
+      "heater_bed": {
+        "temperature": 109.2,
+        "target": 110.0
+      },
+      "display_status": {
+        "progress": 0.374
+      }
+    }
+  }
+}

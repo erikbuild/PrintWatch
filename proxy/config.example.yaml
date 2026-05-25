@@ -1,0 +1,24 @@
+proxy:
+  host: "0.0.0.0"
+  port: 8080
+  poll_interval: 10
+
+printers:
+  - id: "mk4"
+    name: "Prusa MK4"
+    type: "prusalink"
+    url: "http://192.168.1.50"
+    username: "maker"
+    password: "your-api-key-here"
+
+  - id: "voron"
+    name: "Voron 2.4"
+    type: "moonraker"
+    url: "http://192.168.1.60:7125"
+    api_key: ""
+
+  - id: "ender"
+    name: "Ender 3 K1"
+    type: "moonraker"
+    url: "http://192.168.1.61:7125"
+    api_key: "your-api-key-here"
