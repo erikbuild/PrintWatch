@@ -17,8 +17,10 @@
 #include <stdio.h>
 
 #include "printers.h"
+#include "json.h"
 #include "ui.h"
 #include "config.h"
+#include "network.h"
 
 enum {
     kMenuApple   = 128,
@@ -36,13 +38,16 @@ enum {
     kFileQuit    = 3
 };
 
-static WindowPtr   gWindow;
+static WindowPtr    gWindow;
 static Boolean      gQuit = false;
 static int          gCurrentView = kViewList;
 static int          gSelectedPrinter = 0;
 static PrinterList  gPrinterList;
 static AppConfig    gConfig;
+static NetState     gNet;
+static Boolean      gNetAvailable = false;
 static unsigned long gNextPollTime = 0;
+static unsigned long gProxyIP = 0;
 static char         gStatusMessage[80];
 
 static void InitToolbox(void) {
@@ -64,50 +69,74 @@ static void SetupMenus(void) {
     DrawMenuBar();
 }
 
-static void LoadTestData(void) {
-    PrinterList_Init(&gPrinterList);
-    gPrinterList.count = 4;
+static void InitNetworking(void) {
+    int err;
 
-    strcpy(gPrinterList.printers[0].id, "mk4");
-    strcpy(gPrinterList.printers[0].name, "Prusa MK4");
-    strcpy(gPrinterList.printers[0].type, "prusalink");
-    strcpy(gPrinterList.printers[0].state, "printing");
-    gPrinterList.printers[0].progress = 78;
-    strcpy(gPrinterList.printers[0].job, "benchy.gcode");
-    gPrinterList.printers[0].time_remaining = 4320;
-    gPrinterList.printers[0].nozzle_temp = 215;
-    gPrinterList.printers[0].nozzle_target = 215;
-    gPrinterList.printers[0].bed_temp = 60;
-    gPrinterList.printers[0].bed_target = 60;
+    gProxyIP = Net_ParseIP(gConfig.proxyIP);
+    if (gProxyIP == 0) {
+        strcpy(gStatusMessage, "Bad proxy IP address");
+        return;
+    }
 
-    strcpy(gPrinterList.printers[1].id, "voron");
-    strcpy(gPrinterList.printers[1].name, "Voron 2.4");
-    strcpy(gPrinterList.printers[1].type, "moonraker");
-    strcpy(gPrinterList.printers[1].state, "idle");
-    gPrinterList.printers[1].nozzle_temp = 22;
-    gPrinterList.printers[1].bed_temp = 21;
+    err = Net_Init(&gNet);
+    if (err != kNetOK) {
+        strcpy(gStatusMessage, "MacTCP not available");
+        return;
+    }
+    gNetAvailable = true;
+}
 
-    strcpy(gPrinterList.printers[2].id, "ender");
-    strcpy(gPrinterList.printers[2].name, "Ender 3 K1");
-    strcpy(gPrinterList.printers[2].type, "moonraker");
-    strcpy(gPrinterList.printers[2].state, "printing");
-    gPrinterList.printers[2].progress = 18;
-    strcpy(gPrinterList.printers[2].job, "bracket.gcode");
-    gPrinterList.printers[2].time_remaining = 16200;
-    gPrinterList.printers[2].nozzle_temp = 210;
-    gPrinterList.printers[2].nozzle_target = 210;
-    gPrinterList.printers[2].bed_temp = 60;
-    gPrinterList.printers[2].bed_target = 60;
+static void PollPrinters(void) {
+    char *body;
+    int bodyLen;
+    int err;
+    PrinterList newList;
 
-    strcpy(gPrinterList.printers[3].id, "xl");
-    strcpy(gPrinterList.printers[3].name, "Prusa XL");
-    strcpy(gPrinterList.printers[3].type, "prusalink");
-    strcpy(gPrinterList.printers[3].state, "attention");
-    strcpy(gPrinterList.printers[3].error, "Filament change needed");
-    gPrinterList.printers[3].nozzle_temp = 215;
-    gPrinterList.printers[3].nozzle_target = 215;
-    gPrinterList.printers[3].bed_temp = 60;
-    gPrinterList.printers[3].bed_target = 60;
+    if (!gNetAvailable) {
+        return;
+    }
+
+    strcpy(gStatusMessage, "Polling...");
+    UI_DrawStatusBar(gWindow, gStatusMessage);
+
+    err = Net_HttpGet(&gNet, gProxyIP, (short)gConfig.proxyPort,
+                      gConfig.proxyIP, "/printers", &body, &bodyLen);
+
+    if (err != kNetOK) {
+        switch (err) {
+            case kNetConnectFailed:
+                strcpy(gStatusMessage, "Cannot reach proxy");
+                break;
+            case kNetSendFailed:
+                strcpy(gStatusMessage, "Send failed");
+                break;
+            case kNetRecvFailed:
+                strcpy(gStatusMessage, "No response");
+                break;
+            case kNetBadResponse:
+                strcpy(gStatusMessage, "Bad response");
+                break;
+            default:
+                strcpy(gStatusMessage, "Network error");
+                break;
+        }
+        UI_DrawStatusBar(gWindow, gStatusMessage);
+        return;
+    }
+
+    PrinterList_Init(&newList);
+    if (ParsePrintersResponse(body, bodyLen, &newList) == 0) {
+        gPrinterList = newList;
+        if (gSelectedPrinter >= gPrinterList.count) {
+            gSelectedPrinter = 0;
+        }
+        sprintf(gStatusMessage, "Updated  %d printers  Poll: %ds",
+                gPrinterList.count, gConfig.pollIntervalSecs);
+        UI_InvalidateAll(gWindow);
+    } else {
+        strcpy(gStatusMessage, "Bad JSON from proxy");
+    }
+    UI_DrawStatusBar(gWindow, gStatusMessage);
 }
 
 static void DrawWindow(WindowPtr window) {
@@ -272,11 +301,20 @@ int main(void) {
     gWindow = GetNewWindow(128, NULL, (WindowPtr)-1);
     SetPort(gWindow);
 
-    LoadTestData();
-    sprintf(gStatusMessage, "Proxy: %s:%d  Poll: %ds",
-            gConfig.proxyIP, gConfig.proxyPort, gConfig.pollIntervalSecs);
+    PrinterList_Init(&gPrinterList);
+    sprintf(gStatusMessage, "Connecting to %s:%d...",
+            gConfig.proxyIP, gConfig.proxyPort);
+
+    InitNetworking();
+    gNextPollTime = 0;
 
     while (!gQuit) {
+        /* Poll when the timer expires */
+        if (gNetAvailable && TickCount() >= gNextPollTime) {
+            PollPrinters();
+            gNextPollTime = TickCount() + ((unsigned long)gConfig.pollIntervalSecs * 60);
+        }
+
         if (WaitNextEvent(everyEvent, &event, 15, NULL)) {
             switch (event.what) {
                 case mouseDown:

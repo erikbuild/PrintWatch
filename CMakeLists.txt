@@ -8,6 +8,7 @@ add_application(PrintWatch
     src/json.c
     src/config.c
     src/ui.c
+    src/network.c
     src/TCPRoutines.c
     src/TCPHi.c
 )
