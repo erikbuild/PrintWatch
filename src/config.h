@@ -11,5 +11,6 @@ typedef struct {
 } AppConfig;
 
 void Config_Load(AppConfig *config);
+void Config_Save(const AppConfig *config);
 
 #endif

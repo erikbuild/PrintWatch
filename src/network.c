@@ -80,7 +80,7 @@ int Net_HttpGet(NetState *net, unsigned long ip, short port,
         return kNetSendFailed;
     }
 
-    /* Receive response until connection closes */
+    /* Receive response until connection closes or buffer full */
     totalRecv = 0;
     while (totalRecv < NET_HTTP_BUF_SIZE - 1) {
         recvLen = NET_HTTP_BUF_SIZE - 1 - totalRecv;
@@ -89,6 +89,11 @@ int Net_HttpGet(NetState *net, unsigned long ip, short port,
 
         if (err == noErr && recvLen > 0) {
             totalRecv += recvLen;
+        } else if (err == connectionClosing || err == connectionTerminated) {
+            if (recvLen > 0) {
+                totalRecv += recvLen;
+            }
+            break;
         } else {
             break;
         }

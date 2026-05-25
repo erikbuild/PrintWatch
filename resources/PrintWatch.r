@@ -106,6 +106,74 @@ resource 'DITL' (130) {
     }
 };
 
+/* Set Proxy Address dialog */
+resource 'DLOG' (131) {
+    { 80, 80, 210, 432 },
+    dBoxProc,
+    visible,
+    noGoAway,
+    0,
+    131,
+    "Set Proxy Address",
+    centerMainScreen
+};
+
+resource 'DITL' (131) {
+    {
+        { 95, 250, 115, 330 },
+        Button { enabled, "OK" };
+
+        { 95, 155, 115, 235 },
+        Button { enabled, "Cancel" };
+
+        { 10, 15, 26, 130 },
+        StaticText { enabled, "Proxy IP:" };
+
+        { 10, 135, 26, 335 },
+        EditText { enabled, "" };
+
+        { 38, 15, 54, 130 },
+        StaticText { enabled, "Port:" };
+
+        { 38, 135, 54, 210 },
+        EditText { enabled, "" };
+
+        { 70, 15, 86, 335 },
+        StaticText { enabled, "Changes take effect on next poll." };
+    }
+};
+
+/* Set Poll Interval dialog */
+resource 'DLOG' (132) {
+    { 80, 100, 190, 412 },
+    dBoxProc,
+    visible,
+    noGoAway,
+    0,
+    132,
+    "Set Poll Interval",
+    centerMainScreen
+};
+
+resource 'DITL' (132) {
+    {
+        { 75, 220, 95, 290 },
+        Button { enabled, "OK" };
+
+        { 75, 125, 95, 205 },
+        Button { enabled, "Cancel" };
+
+        { 10, 15, 26, 170 },
+        StaticText { enabled, "Interval (seconds):" };
+
+        { 10, 175, 26, 240 },
+        EditText { enabled, "" };
+
+        { 38, 15, 54, 290 },
+        StaticText { enabled, "How often to poll the proxy." };
+    }
+};
+
 /* SIZE resource: memory requirements */
 resource 'SIZE' (-1) {
     reserved,

@@ -21,6 +21,7 @@
 #include "ui.h"
 #include "config.h"
 #include "network.h"
+#include <stdlib.h>
 
 enum {
     kMenuApple   = 128,
@@ -38,6 +39,11 @@ enum {
     kFileQuit    = 3
 };
 
+enum {
+    kOptionsProxyAddr  = 1,
+    kOptionsPollInterval = 2
+};
+
 static WindowPtr    gWindow;
 static Boolean      gQuit = false;
 static int          gCurrentView = kViewList;
@@ -48,6 +54,7 @@ static NetState     gNet;
 static Boolean      gNetAvailable = false;
 static unsigned long gNextPollTime = 0;
 static unsigned long gProxyIP = 0;
+static int          gConsecutiveErrors = 0;
 static char         gStatusMessage[80];
 
 static void InitToolbox(void) {
@@ -103,6 +110,7 @@ static void PollPrinters(void) {
                       gConfig.proxyIP, "/printers", &body, &bodyLen);
 
     if (err != kNetOK) {
+        gConsecutiveErrors++;
         switch (err) {
             case kNetConnectFailed:
                 strcpy(gStatusMessage, "Cannot reach proxy");
@@ -126,6 +134,7 @@ static void PollPrinters(void) {
 
     PrinterList_Init(&newList);
     if (ParsePrintersResponse(body, bodyLen, &newList) == 0) {
+        gConsecutiveErrors = 0;
         gPrinterList = newList;
         if (gSelectedPrinter >= gPrinterList.count) {
             gSelectedPrinter = 0;
@@ -134,6 +143,7 @@ static void PollPrinters(void) {
                 gPrinterList.count, gConfig.pollIntervalSecs);
         UI_InvalidateAll(gWindow);
     } else {
+        gConsecutiveErrors++;
         strcpy(gStatusMessage, "Bad JSON from proxy");
     }
     UI_DrawStatusBar(gWindow, gStatusMessage);
@@ -146,6 +156,105 @@ static void DrawWindow(WindowPtr window) {
         UI_DrawDetailView(window, &gPrinterList.printers[gSelectedPrinter]);
     }
     UI_DrawStatusBar(window, gStatusMessage);
+}
+
+static void ReadDlgItemText(DialogPtr dlg, short item, char *cstr, int maxLen) {
+    DialogItemType type;
+    Handle itemH;
+    Rect box;
+    Str255 pstr;
+
+    GetDialogItem(dlg, item, &type, &itemH, &box);
+    GetDialogItemText(itemH, pstr);
+    {
+        int len = pstr[0];
+        if (len >= maxLen) len = maxLen - 1;
+        memcpy(cstr, pstr + 1, len);
+        cstr[len] = '\0';
+    }
+}
+
+static void WriteDlgItemText(DialogPtr dlg, short item, const char *cstr) {
+    DialogItemType type;
+    Handle itemH;
+    Rect box;
+    Str255 pstr;
+    int len = strlen(cstr);
+
+    if (len > 255) len = 255;
+    pstr[0] = len;
+    memcpy(pstr + 1, cstr, len);
+    GetDialogItem(dlg, item, &type, &itemH, &box);
+    SetDialogItemText(itemH, pstr);
+}
+
+static void ShowProxyAddressDialog(void) {
+    DialogPtr dlg;
+    short item;
+    char ipBuf[16], portBuf[8];
+
+    dlg = GetNewDialog(131, NULL, (WindowPtr)-1);
+    WriteDlgItemText(dlg, 4, gConfig.proxyIP);
+    sprintf(portBuf, "%d", gConfig.proxyPort);
+    WriteDlgItemText(dlg, 6, portBuf);
+    SelectDialogItemText(dlg, 4, 0, 32767);
+
+    do {
+        ModalDialog(NULL, &item);
+    } while (item != 1 && item != 2);
+
+    if (item == 1) {
+        int port;
+        ReadDlgItemText(dlg, 4, ipBuf, sizeof(ipBuf));
+        ReadDlgItemText(dlg, 6, portBuf, sizeof(portBuf));
+        port = atoi(portBuf);
+
+        if (Net_ParseIP(ipBuf) != 0 && port > 0 && port <= 65535) {
+            strcpy(gConfig.proxyIP, ipBuf);
+            gConfig.proxyPort = port;
+            Config_Save(&gConfig);
+            gProxyIP = Net_ParseIP(gConfig.proxyIP);
+            gNextPollTime = 0;
+            sprintf(gStatusMessage, "Proxy set to %s:%d", gConfig.proxyIP, gConfig.proxyPort);
+        } else {
+            strcpy(gStatusMessage, "Invalid address or port");
+        }
+        UI_DrawStatusBar(gWindow, gStatusMessage);
+    }
+
+    DisposeDialog(dlg);
+}
+
+static void ShowPollIntervalDialog(void) {
+    DialogPtr dlg;
+    short item;
+    char buf[8];
+
+    dlg = GetNewDialog(132, NULL, (WindowPtr)-1);
+    sprintf(buf, "%d", gConfig.pollIntervalSecs);
+    WriteDlgItemText(dlg, 4, buf);
+    SelectDialogItemText(dlg, 4, 0, 32767);
+
+    do {
+        ModalDialog(NULL, &item);
+    } while (item != 1 && item != 2);
+
+    if (item == 1) {
+        int interval;
+        ReadDlgItemText(dlg, 4, buf, sizeof(buf));
+        interval = atoi(buf);
+
+        if (interval >= 5 && interval <= 300) {
+            gConfig.pollIntervalSecs = interval;
+            Config_Save(&gConfig);
+            sprintf(gStatusMessage, "Poll interval set to %ds", interval);
+        } else {
+            strcpy(gStatusMessage, "Interval must be 5-300s");
+        }
+        UI_DrawStatusBar(gWindow, gStatusMessage);
+    }
+
+    DisposeDialog(dlg);
 }
 
 static void HandleMenuChoice(long menuChoice) {
@@ -174,6 +283,11 @@ static void HandleMenuChoice(long menuChoice) {
             break;
 
         case kMenuOptions:
+            if (menuItem == kOptionsProxyAddr) {
+                ShowProxyAddressDialog();
+            } else if (menuItem == kOptionsPollInterval) {
+                ShowPollIntervalDialog();
+            }
             break;
     }
 
@@ -309,10 +423,17 @@ int main(void) {
     gNextPollTime = 0;
 
     while (!gQuit) {
-        /* Poll when the timer expires */
+        /* Poll when the timer expires, with backoff on consecutive errors */
         if (gNetAvailable && TickCount() >= gNextPollTime) {
+            unsigned long interval = (unsigned long)gConfig.pollIntervalSecs * 60;
             PollPrinters();
-            gNextPollTime = TickCount() + ((unsigned long)gConfig.pollIntervalSecs * 60);
+            if (gConsecutiveErrors > 0) {
+                /* Double the interval on errors, up to 2 minutes */
+                unsigned long backoff = interval << gConsecutiveErrors;
+                if (backoff > 120UL * 60) backoff = 120UL * 60;
+                interval = backoff;
+            }
+            gNextPollTime = TickCount() + interval;
         }
 
         if (WaitNextEvent(everyEvent, &event, 15, NULL)) {
