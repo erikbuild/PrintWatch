@@ -6,10 +6,17 @@ add_application(PrintWatch
     src/main.c
     src/printers.c
     src/json.c
+    src/TCPRoutines.c
+    src/TCPHi.c
 )
 
 set_target_properties(PrintWatch PROPERTIES
     COMPILE_OPTIONS "-Os;-ffunction-sections"
+)
+
+# MacTCPHelper uses unsigned long / Ptr interchangeably (safe on 68K)
+set_source_files_properties(src/TCPRoutines.c src/TCPHi.c PROPERTIES
+    COMPILE_FLAGS "-Wno-incompatible-pointer-types -Wno-int-conversion"
 )
 
 if(CMAKE_SYSTEM_NAME MATCHES Retro68)
