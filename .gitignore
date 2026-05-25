@@ -1,0 +1,22 @@
+build/
+*.dsk
+*.bin
+*.ROM
+*.app
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Host test binaries
+tests/test_printers
+tests/test_json
+
+# Editor
+*.swp
+*~
