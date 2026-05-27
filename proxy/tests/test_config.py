@@ -108,3 +108,28 @@ printers: []
     config = load_config(path)
     os.unlink(path)
     assert len(config.printers) == 0
+
+
+def test_camera_defaults_to_false():
+    path = _write_config("""
+printers:
+  - id: mk4
+    type: prusalink
+    url: http://192.168.1.50
+""")
+    config = load_config(path)
+    os.unlink(path)
+    assert config.printers[0].camera is False
+
+
+def test_camera_flag_parsed():
+    path = _write_config("""
+printers:
+  - id: core_one
+    type: prusalink
+    url: http://192.168.1.50
+    camera: true
+""")
+    config = load_config(path)
+    os.unlink(path)
+    assert config.printers[0].camera is True

@@ -36,3 +36,14 @@ def test_to_dict_values_are_correct_types():
     assert isinstance(d["progress"], int)
     assert isinstance(d["nozzle_temp"], int)
     assert isinstance(d["time_remaining"], int)
+
+
+def test_has_snapshot_defaults_to_false():
+    p = PrinterStatus()
+    assert p.has_snapshot is False
+
+
+def test_has_snapshot_in_dict():
+    p = PrinterStatus(has_snapshot=True)
+    d = p.to_dict()
+    assert d["has_snapshot"] is True

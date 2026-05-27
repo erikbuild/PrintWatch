@@ -38,6 +38,13 @@ int Net_HttpGet(NetState *net, unsigned long ip, short port,
                 const char *host, const char *path,
                 char **outBuf, int *outLen);
 
+/* Same as Net_HttpGet but writes into a caller-provided buffer.
+   For responses larger than NET_HTTP_BUF_SIZE (e.g. snapshot images).
+   On success, outLen is set to the body length. */
+int Net_HttpGetBuf(NetState *net, unsigned long ip, short port,
+                   const char *host, const char *path,
+                   char *buf, int bufSize, int *outLen);
+
 /* Parse a dotted-quad IP string into a network-order unsigned long.
    Returns 0 on failure. */
 unsigned long Net_ParseIP(const char *ipStr);

@@ -20,6 +20,7 @@ class PrinterStatus:
     bed_temp: int = 0
     bed_target: int = 0
     error: str = ""
+    has_snapshot: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)

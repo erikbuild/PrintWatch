@@ -16,6 +16,15 @@ printers:
     username: "maker"
     password: "your-api-key-here"
 
+  - id: "core_one"
+    name: "Core One"
+    type: "prusalink"
+    model: "core_one"
+    url: "http://192.168.1.51"
+    username: "maker"
+    password: "your-api-key-here"
+    camera: true                    # enable BuddyCam snapshots
+
   - id: "voron"
     name: "Voron 2.4"
     type: "moonraker"

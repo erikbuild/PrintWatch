@@ -8,6 +8,7 @@ from .config import ProxyConfig, PrinterConfig
 from .models import PrinterStatus
 from .model_names import MODEL_NAMES
 from .adapters import prusalink, moonraker, bambulab
+from .snapshot import png_to_pimg
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ class Poller:
     def __init__(self, config: ProxyConfig):
         self.config = config
         self.cache: dict[str, PrinterStatus] = {}
+        self.snapshot_cache: dict[str, bytes] = {}
         self._tasks: list[asyncio.Task] = []
         self._metadata_caches: dict[str, dict] = {}
         self._bambu_connections: dict[str, bambulab.BambuConnection] = {}
@@ -66,6 +68,13 @@ class Poller:
                             error=f"Unknown type: {cfg.type}"
                         )
                     status.model_name = _resolve_model_name(cfg.model)
+                    if cfg.camera and cfg.type == "prusalink":
+                        png_data = await prusalink.poll_snapshot(client, cfg)
+                        if png_data:
+                            pimg = png_to_pimg(png_data)
+                            if pimg:
+                                self.snapshot_cache[cfg.id] = pimg
+                        status.has_snapshot = cfg.id in self.snapshot_cache
                     self.cache[cfg.id] = status
                 except asyncio.CancelledError:
                     raise
@@ -85,3 +94,6 @@ class Poller:
     def get_by_id(self, printer_id: str) -> dict | None:
         status = self.cache.get(printer_id)
         return status.to_dict() if status else None
+
+    def get_snapshot(self, printer_id: str) -> bytes | None:
+        return self.snapshot_cache.get(printer_id)

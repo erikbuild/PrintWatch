@@ -29,6 +29,7 @@ typedef struct {
     int  bed_temp;
     int  bed_target;
     char error[MAX_ERROR_LEN];
+    int  has_snapshot;
 } PrinterStatus;
 
 typedef struct {

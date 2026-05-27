@@ -25,6 +25,88 @@ int Net_Init(NetState *net) {
     return kNetOK;
 }
 
+int Net_HttpGetBuf(NetState *net, unsigned long ip, short port,
+                   const char *host, const char *path,
+                   char *buf, int bufSize, int *outLen) {
+    OSErr err;
+    char request[256];
+    int reqLen;
+    unsigned short recvLen;
+    int totalRecv;
+    char *bodyStart;
+
+    *outLen = 0;
+
+    if (!net->initialized) {
+        return kNetNoMacTCP;
+    }
+
+    net->cancel = false;
+
+    err = CreateStream(&net->stream, NET_RECV_BUF_SIZE, GiveTime, &net->cancel);
+    if (err != noErr) {
+        return kNetConnectFailed;
+    }
+
+    err = OpenConnection(net->stream, (long)ip, port, 30, GiveTime, &net->cancel);
+    if (err != noErr) {
+        ReleaseStream(net->stream, GiveTime, &net->cancel);
+        return kNetConnectFailed;
+    }
+
+    reqLen = sprintf(request,
+        "GET %s HTTP/1.0\r\n"
+        "Host: %s\r\n"
+        "Connection: close\r\n"
+        "\r\n",
+        path, host);
+
+    err = SendData(net->stream, request, (unsigned short)reqLen, true, GiveTime, &net->cancel);
+    if (err != noErr) {
+        CloseNetConnection(net->stream, GiveTime, &net->cancel);
+        ReleaseStream(net->stream, GiveTime, &net->cancel);
+        return kNetSendFailed;
+    }
+
+    totalRecv = 0;
+    while (totalRecv < bufSize - 1) {
+        recvLen = bufSize - 1 - totalRecv;
+        err = RecvData(net->stream, buf + totalRecv, &recvLen,
+                       false, GiveTime, &net->cancel);
+
+        if (err == noErr && recvLen > 0) {
+            totalRecv += recvLen;
+        } else if (err == connectionClosing || err == connectionTerminated) {
+            if (recvLen > 0) {
+                totalRecv += recvLen;
+            }
+            break;
+        } else {
+            break;
+        }
+    }
+    buf[totalRecv] = '\0';
+
+    CloseNetConnection(net->stream, GiveTime, &net->cancel);
+    ReleaseStream(net->stream, GiveTime, &net->cancel);
+
+    if (totalRecv == 0) {
+        return kNetRecvFailed;
+    }
+
+    bodyStart = strstr(buf, "\r\n\r\n");
+    if (bodyStart == NULL) {
+        return kNetBadResponse;
+    }
+    bodyStart += 4;
+
+    /* Shift body to the front of the buffer */
+    *outLen = totalRecv - (bodyStart - buf);
+    memmove(buf, bodyStart, *outLen);
+
+    return kNetOK;
+}
+
 unsigned long Net_ParseIP(const char *ipStr) {
     unsigned long a, b, c, d;
     if (sscanf(ipStr, "%lu.%lu.%lu.%lu", &a, &b, &c, &d) != 4) {

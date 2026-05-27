@@ -98,6 +98,10 @@ static int ParsePrinterObject(const char *json, jsmntok_t *tokens,
             printer->bed_target = json_int(json, &tokens[j + 1]);
         } else if (jsoneq(json, &tokens[j], "error") == 0) {
             json_strcpy(json, &tokens[j + 1], printer->error, MAX_ERROR_LEN);
+        } else if (jsoneq(json, &tokens[j], "has_snapshot") == 0) {
+            char buf[8];
+            json_strcpy(json, &tokens[j + 1], buf, sizeof(buf));
+            printer->has_snapshot = (strcmp(buf, "true") == 0);
         }
         j += 2;
     }

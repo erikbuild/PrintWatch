@@ -17,6 +17,7 @@ class PrinterConfig:
     username: str = ""
     password: str = ""
     api_key: str = ""
+    camera: bool = False
 
 
 @dataclass
@@ -57,6 +58,7 @@ def load_config(path: str) -> ProxyConfig:
             username=p.get("username", ""),
             password=p.get("password", ""),
             api_key=p.get("api_key", ""),
+            camera=bool(p.get("camera", False)),
         ))
 
     return config

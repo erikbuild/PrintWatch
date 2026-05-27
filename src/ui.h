@@ -9,7 +9,8 @@
 
 enum {
     kViewList   = 0,
-    kViewDetail = 1
+    kViewDetail = 1,
+    kViewCamera = 2
 };
 
 #define kRowHeight    46
@@ -18,6 +19,7 @@ enum {
 
 void UI_DrawListView(WindowPtr window, PrinterList *list, int selectedIndex);
 void UI_DrawDetailView(WindowPtr window, PrinterStatus *printer);
+void UI_DrawCameraView(WindowPtr window, PrinterStatus *printer);
 void UI_DrawStatusBar(WindowPtr window, const char *message);
 
 /* Returns the printer index at the given local y coordinate, or -1. */

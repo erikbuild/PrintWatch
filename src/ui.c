@@ -4,6 +4,7 @@
 #include "ui.h"
 #include "printers.h"
 #include "icons.h"
+#include "snapshot.h"
 #include <Quickdraw.h>
 #include <Fonts.h>
 #include <TextUtils.h>
@@ -268,6 +269,52 @@ void UI_DrawDetailView(WindowPtr window, PrinterStatus *printer) {
     TextFace(0);
     MoveTo(kMarginLeft, y);
     DrawCString("Press Esc or click here to go back");
+    if (printer->has_snapshot) {
+        MoveTo(contentWidth - kMarginRight - 120, y);
+        DrawCString("Press C for camera");
+    }
+}
+
+void UI_DrawCameraView(WindowPtr window, PrinterStatus *printer) {
+    Rect r;
+    int contentWidth, contentHeight, imgX, imgY;
+
+    SetPort(window);
+    r = window->portRect;
+    contentWidth = r.right - r.left;
+    contentHeight = r.bottom - r.top - kStatusBarHeight;
+
+    /* Clear content area */
+    r.bottom -= kStatusBarHeight;
+    EraseRect(&r);
+
+    /* Header: printer name + "Camera" */
+    TextFont(kFontGeneva);
+    TextSize(10);
+    TextFace(bold);
+    MoveTo(kMarginLeft, 14);
+    DrawCString(printer->name);
+    TextFace(0);
+    DrawCString(" \xD0 Camera");
+
+    /* Draw snapshot centered below header */
+    imgX = (contentWidth - 320) / 2;
+    imgY = 24;
+    if (imgX < kMarginLeft) imgX = kMarginLeft;
+    if (!Snapshot_Draw(imgX, imgY)) {
+        TextFont(kFontGeneva);
+        TextSize(9);
+        TextFace(0);
+        MoveTo(kMarginLeft, imgY + 20);
+        DrawCString("No snapshot available.");
+    }
+
+    /* Back hint */
+    TextFont(kFontGeneva);
+    TextSize(9);
+    TextFace(0);
+    MoveTo(kMarginLeft, contentHeight - 4);
+    DrawCString("Press Esc to go back");
 }
 
 void UI_DrawStatusBar(WindowPtr window, const char *message) {

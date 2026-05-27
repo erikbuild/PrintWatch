@@ -20,6 +20,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/printers":
             self._serve_all_printers()
+        elif self.path.startswith("/printers/") and self.path.endswith("/snapshot"):
+            parts = self.path[len("/printers/"):].rsplit("/snapshot", 1)
+            self._serve_snapshot(parts[0])
         elif self.path.startswith("/printers/"):
             printer_id = self.path[len("/printers/"):]
             self._serve_single_printer(printer_id)
@@ -36,6 +39,18 @@ class ProxyHandler(BaseHTTPRequestHandler):
             self.send_error(404, "Printer not found")
             return
         self._send_json(data)
+
+    def _serve_snapshot(self, printer_id: str):
+        data = self.poller.get_snapshot(printer_id)
+        if data is None:
+            self.send_error(404, "No snapshot available")
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "application/octet-stream")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.write(data)
 
     def _send_json(self, data):
         body = json.dumps(data, separators=(",", ":")).encode("ascii")

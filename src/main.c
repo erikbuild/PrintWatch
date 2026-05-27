@@ -22,6 +22,7 @@
 #include "config.h"
 #include "network.h"
 #include "icons.h"
+#include "snapshot.h"
 #include <stdlib.h>
 
 enum {
@@ -142,6 +143,15 @@ static void PollPrinters(void) {
         }
         sprintf(gStatusMessage, "Updated  %d printers  Poll: %ds",
                 gPrinterList.count, gConfig.pollIntervalSecs);
+
+        /* Fetch snapshot for selected printer if available */
+        if (gSelectedPrinter < gPrinterList.count &&
+            gPrinterList.printers[gSelectedPrinter].has_snapshot) {
+            Snapshot_Fetch(&gNet, gProxyIP, (short)gConfig.proxyPort,
+                           gConfig.proxyIP,
+                           gPrinterList.printers[gSelectedPrinter].id);
+        }
+
         UI_InvalidateAll(gWindow);
     } else {
         gConsecutiveErrors++;
@@ -153,8 +163,10 @@ static void PollPrinters(void) {
 static void DrawWindow(WindowPtr window) {
     if (gCurrentView == kViewList) {
         UI_DrawListView(window, &gPrinterList, gSelectedPrinter);
-    } else {
+    } else if (gCurrentView == kViewDetail) {
         UI_DrawDetailView(window, &gPrinterList.printers[gSelectedPrinter]);
+    } else if (gCurrentView == kViewCamera) {
+        UI_DrawCameraView(window, &gPrinterList.printers[gSelectedPrinter]);
     }
     UI_DrawStatusBar(window, gStatusMessage);
 }
@@ -310,11 +322,16 @@ static void HandleContentClick(Point localPt) {
                 UI_InvalidateRow(gWindow, gSelectedPrinter);
             }
         }
-    } else {
-        /* In detail view, clicking in the bottom area goes back */
+    } else if (gCurrentView == kViewDetail) {
         Rect r = gWindow->portRect;
         if (localPt.v > r.bottom - kStatusBarHeight - 20) {
             gCurrentView = kViewList;
+            UI_InvalidateAll(gWindow);
+        }
+    } else if (gCurrentView == kViewCamera) {
+        Rect r = gWindow->portRect;
+        if (localPt.v > r.bottom - kStatusBarHeight - 20) {
+            gCurrentView = kViewDetail;
             UI_InvalidateAll(gWindow);
         }
     }
@@ -390,9 +407,18 @@ static void HandleKeyDown(EventRecord *event) {
                 UI_InvalidateAll(gWindow);
                 break;
         }
-    } else {
+    } else if (gCurrentView == kViewDetail) {
         if (key == 0x1B) { /* escape */
             gCurrentView = kViewList;
+            UI_InvalidateAll(gWindow);
+        } else if ((key == 'c' || key == 'C') &&
+                   gPrinterList.printers[gSelectedPrinter].has_snapshot) {
+            gCurrentView = kViewCamera;
+            UI_InvalidateAll(gWindow);
+        }
+    } else if (gCurrentView == kViewCamera) {
+        if (key == 0x1B) { /* escape */
+            gCurrentView = kViewDetail;
             UI_InvalidateAll(gWindow);
         }
     }
