@@ -39,7 +39,7 @@ resource 'MENU' (130) {
 
 /* Main window: nearly full screen on Mac SE (512x342) */
 resource 'WIND' (128) {
-    { 40, 0, 338, 512 },
+    { 40, 2, 338, 508 },
     noGrowDocProc,
     visible,
     goAway,
@@ -53,7 +53,8 @@ resource 'STR#' (128) {
     {
         "10.0.2.2";
         "8080";
-        "15"
+        "15";
+        "0"
     }
 };
 

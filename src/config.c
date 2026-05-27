@@ -26,6 +26,7 @@ void Config_Load(AppConfig *config) {
     strcpy(config->proxyIP, "10.0.2.2");
     config->proxyPort = 8080;
     config->pollIntervalSecs = 15;
+    config->configured = 0;
 
     GetIndString(pstr, 128, 1);
     if (pstr[0] > 0) {
@@ -42,6 +43,12 @@ void Config_Load(AppConfig *config) {
     if (pstr[0] > 0) {
         PascalToC(pstr, buf, sizeof(buf));
         config->pollIntervalSecs = atoi(buf);
+    }
+
+    GetIndString(pstr, 128, 4);
+    if (pstr[0] > 0) {
+        PascalToC(pstr, buf, sizeof(buf));
+        config->configured = atoi(buf);
     }
 }
 
@@ -114,4 +121,7 @@ void Config_Save(const AppConfig *config) {
     sprintf(buf, "%d", config->pollIntervalSecs);
     CToPascal(buf, pstr);
     SetIndString(128, 3, pstr);
+
+    CToPascal("1", pstr);
+    SetIndString(128, 4, pstr);
 }

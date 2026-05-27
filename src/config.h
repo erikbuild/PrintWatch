@@ -8,6 +8,7 @@ typedef struct {
     char proxyIP[16];
     int  proxyPort;
     int  pollIntervalSecs;
+    int  configured;
 } AppConfig;
 
 void Config_Load(AppConfig *config);

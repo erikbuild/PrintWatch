@@ -122,6 +122,19 @@ cp build/PrintWatch.bin ~/Code/Basilisk\ II/shared/
 
 The file appears on the emulated Mac's desktop as a mounted volume.
 
+#### First-time network setup
+
+BasiliskII uses SLiRP for networking. On the first launch, open the MacTCP control panel and configure it with the SLiRP defaults:
+
+- **Class**: A
+- **Obtain Address**: Manually
+- **IP Address**: 10.0.2.15
+- **Gateway**: 10.0.2.2
+- **DNS**: 10.0.2.3 (set domain to `local`)
+- **Subnet Mask**: 255.255.255.0
+
+![MacTCP settings](docs/basiliskii-networksettings.png)
+
 ## Toolchain
 
 | Component | Location |

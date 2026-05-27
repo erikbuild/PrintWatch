@@ -418,6 +418,11 @@ int main(void) {
     Icons_Init();
 
     PrinterList_Init(&gPrinterList);
+
+    if (!gConfig.configured) {
+        ShowProxyAddressDialog();
+    }
+
     sprintf(gStatusMessage, "Connecting to %s:%d...",
             gConfig.proxyIP, gConfig.proxyPort);
 
