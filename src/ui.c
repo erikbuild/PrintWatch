@@ -69,6 +69,12 @@ static void DrawListRow(PrinterStatus *printer, int rowIndex, int selected,
     TextFace(bold);
     MoveTo(kMarginLeft, textY);
     DrawCString(printer->name);
+    if (printer->model[0]) {
+        TextFace(0);
+        DrawCString(" (");
+        DrawCString(printer->model);
+        DrawCString(")");
+    }
 
     /* State */
     TextSize(9);
@@ -170,6 +176,12 @@ void UI_DrawDetailView(WindowPtr window, PrinterStatus *printer) {
     TextFace(bold);
     MoveTo(kMarginLeft, y);
     DrawCString(printer->name);
+    if (printer->model[0]) {
+        TextFace(0);
+        DrawCString(" (");
+        DrawCString(printer->model);
+        DrawCString(")");
+    }
     y += 22;
 
     /* Separator */

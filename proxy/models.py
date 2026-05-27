@@ -9,6 +9,7 @@ class PrinterStatus:
     id: str = ""
     name: str = ""
     type: str = ""
+    model: str = ""
     state: str = "offline"
     progress: int = 0
     job: str = ""

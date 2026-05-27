@@ -30,10 +30,12 @@ static int tests_passed = 0;
 static const char *kTwoPrinters =
     "{\"printers\":["
     "{\"id\":\"mk4\",\"name\":\"Prusa MK4\",\"type\":\"prusalink\","
+    "\"model\":\"MK4S\","
     "\"state\":\"printing\",\"progress\":78,\"job\":\"benchy.gcode\","
     "\"time_remaining\":4320,\"nozzle_temp\":215,\"nozzle_target\":215,"
     "\"bed_temp\":60,\"bed_target\":60,\"error\":\"\"},"
     "{\"id\":\"voron\",\"name\":\"Voron 2.4\",\"type\":\"moonraker\","
+    "\"model\":\"V2.4r2\","
     "\"state\":\"idle\",\"progress\":0,\"job\":\"\","
     "\"time_remaining\":0,\"nozzle_temp\":22,\"nozzle_target\":0,"
     "\"bed_temp\":21,\"bed_target\":0,\"error\":\"\"}"
@@ -43,6 +45,7 @@ static const char *kEmptyPrinters = "{\"printers\":[]}";
 
 static const char *kSinglePrinter =
     "{\"id\":\"ender\",\"name\":\"Ender 3\",\"type\":\"moonraker\","
+    "\"model\":\"K1\","
     "\"state\":\"error\",\"progress\":45,\"job\":\"bracket.gcode\","
     "\"time_remaining\":1800,\"nozzle_temp\":200,\"nozzle_target\":210,"
     "\"bed_temp\":55,\"bed_target\":60,\"error\":\"Thermal runaway\"}";
@@ -61,6 +64,7 @@ static void test_parse_two_printers(void) {
     ASSERT(strcmp(list.printers[0].id, "mk4") == 0);
     ASSERT(strcmp(list.printers[0].name, "Prusa MK4") == 0);
     ASSERT(strcmp(list.printers[0].type, "prusalink") == 0);
+    ASSERT(strcmp(list.printers[0].model, "MK4S") == 0);
     ASSERT(strcmp(list.printers[0].state, "printing") == 0);
     ASSERT(list.printers[0].progress == 78);
     ASSERT(strcmp(list.printers[0].job, "benchy.gcode") == 0);
@@ -100,6 +104,7 @@ static void test_parse_single_printer(void) {
     ASSERT(result == 0);
     ASSERT(strcmp(printer.id, "ender") == 0);
     ASSERT(strcmp(printer.name, "Ender 3") == 0);
+    ASSERT(strcmp(printer.model, "K1") == 0);
     ASSERT(strcmp(printer.state, "error") == 0);
     ASSERT(printer.progress == 45);
     ASSERT(strcmp(printer.job, "bracket.gcode") == 0);
@@ -152,6 +157,7 @@ static void test_parse_large_response(void) {
         }
         pos += snprintf(json + pos, sizeof(json) - pos,
             "{\"id\":\"p%d\",\"name\":\"Printer %d\",\"type\":\"moonraker\","
+            "\"model\":\"V2.4\","
             "\"state\":\"printing\",\"progress\":%d,\"job\":\"part%d.gcode\","
             "\"time_remaining\":%d,\"nozzle_temp\":215,\"nozzle_target\":215,"
             "\"bed_temp\":60,\"bed_target\":60,\"error\":\"\"}",

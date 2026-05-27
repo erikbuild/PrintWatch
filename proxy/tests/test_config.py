@@ -47,6 +47,21 @@ printers:
     config = load_config(path)
     os.unlink(path)
     assert config.printers[0].name == "Voron 2.4"
+    assert config.printers[0].model == ""
+
+
+def test_load_config_with_model():
+    path = _write_config("""
+printers:
+  - id: mk4
+    name: "Prusa MK4"
+    type: prusalink
+    model: "MK4S"
+    url: http://192.168.1.50
+""")
+    config = load_config(path)
+    os.unlink(path)
+    assert config.printers[0].model == "MK4S"
 
 
 def test_config_strips_trailing_slash():

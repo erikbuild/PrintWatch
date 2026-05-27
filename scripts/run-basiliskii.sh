@@ -35,6 +35,7 @@ jit true
 jitfpu true
 frameskip 0
 scale_nearest true
+ether slirp
 EOF
 
 if [ -n "$1" ]; then

@@ -11,11 +11,13 @@
 #define MAX_ERROR_LEN   64
 #define MAX_ID_LEN      16
 #define MAX_TYPE_LEN    12
+#define MAX_MODEL_LEN   24
 
 typedef struct {
     char id[MAX_ID_LEN];
     char name[MAX_NAME_LEN];
     char type[MAX_TYPE_LEN];
+    char model[MAX_MODEL_LEN];
     char state[MAX_STATE_LEN];
     int  progress;
     char job[MAX_JOB_LEN];

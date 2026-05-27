@@ -20,7 +20,8 @@ class Poller:
 
         for p in config.printers:
             self.cache[p.id] = PrinterStatus(
-                id=p.id, name=p.name, type=p.type, state="offline"
+                id=p.id, name=p.name, type=p.type, model=p.model,
+                state="offline"
             )
             if p.type == "moonraker":
                 self._metadata_caches[p.id] = {}
@@ -58,7 +59,7 @@ class Poller:
                     logger.warning("Poll failed for %s: %s", cfg.id, e)
                     self.cache[cfg.id] = PrinterStatus(
                         id=cfg.id, name=cfg.name, type=cfg.type,
-                        state="offline", error=str(e)
+                        model=cfg.model, state="offline", error=str(e)
                     )
 
                 await asyncio.sleep(self.config.poll_interval)

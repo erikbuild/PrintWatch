@@ -15,6 +15,7 @@ def test_to_dict_has_all_fields():
     assert d["id"] == "mk4"
     assert d["name"] == "Prusa MK4"
     assert d["type"] == "prusalink"
+    assert d["model"] == ""
     assert d["state"] == "offline"
     assert d["progress"] == 0
     assert d["job"] == ""

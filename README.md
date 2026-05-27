@@ -1,19 +1,69 @@
-# VibeRetro68
+# PrintWatch
 
-A reference guide and project template for building classic Macintosh (System 7, 68K) applications on modern Apple Silicon Macs using the Retro68 cross-compiler toolchain.
+A 3D printer monitoring app for the Macintosh SE, built for System 7. A Python proxy polls modern printer APIs (PrusaLink, Moonraker) and serves normalized status over HTTP/1.0 for the classic Mac client.
 
-## What's Here
+## Architecture
 
 ```
-docs/
-  RETRO68_SETUP.md      Toolchain installation and configuration
-  EMULATOR_SETUP.md     Basilisk II and Mini vMac setup
-  WORKFLOW.md           Iterative dev workflow with Claude Code
-scripts/
-  build-and-deploy.sh   Build and copy artifact to Basilisk II shared folder
+┌──────────────┐        ┌───────────────┐        ┌──────────────┐
+│  Mac SE App  │──HTTP──│  Proxy Server │──poll──│  3D Printers │
+│  (System 7)  │  1.0   │  (Python)     │        │  (LAN)       │
+└──────────────┘        └───────────────┘        └──────────────┘
 ```
 
-## Quick Start
+## Proxy Setup
+
+### Prerequisites
+
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) (Python package manager)
+
+### Install and Run
+
+```bash
+uv sync
+
+cp proxy/config.example.yaml config.yaml
+# Edit config.yaml with your printer addresses and credentials
+
+uv run printwatch-proxy config.yaml
+```
+
+The proxy starts on port 8080 by default and polls your printers at the configured interval.
+
+### Configuration
+
+Copy `proxy/config.example.yaml` and edit it:
+
+```yaml
+proxy:
+  host: "0.0.0.0"
+  port: 8080
+  poll_interval: 10    # seconds between polls
+
+printers:
+  - id: "mk4"
+    name: "Prusa MK4"
+    type: "prusalink"   # or "moonraker"
+    model: "MK4S"       # shown in UI after printer name
+    url: "http://192.168.1.50"
+    username: "maker"
+    password: "your-api-key-here"
+```
+
+### API
+
+- `GET /printers` — all printer statuses as JSON
+- `GET /printers/{id}` — single printer status
+
+### Tests
+
+```bash
+uv run pytest proxy/tests/
+```
+
+## Mac SE Client
+
+The client is a System 7 application built with the Retro68 cross-compiler toolchain.
 
 ### Prerequisites
 
@@ -29,21 +79,7 @@ mkdir ~/Code/Retro68-build && cd ~/Code/Retro68-build
 ../Retro68/build-toolchain.bash --no-ppc --clean-after-build
 ```
 
-### Start a New Project
-
-Create a `CMakeLists.txt`:
-
-```cmake
-cmake_minimum_required(VERSION 3.9)
-project(MyApp C)
-
-add_application(MyApp
-    SOURCES src/main.c
-    RESOURCES resources/MyApp.r
-)
-```
-
-Configure and build:
+### Build the App
 
 ```bash
 mkdir build && cd build
@@ -53,10 +89,8 @@ make
 
 ### Test in Basilisk II
 
-Copy the `.bin` output to the Basilisk II shared folder:
-
 ```bash
-cp build/MyApp.bin ~/Code/Basilisk\ II/shared/
+cp build/PrintWatch.bin ~/Code/Basilisk\ II/shared/
 ```
 
 The file appears on the emulated Mac's desktop as a mounted volume.
@@ -69,12 +103,11 @@ The file appears on the emulated Mac's desktop as a mounted volume.
 | Build output / toolchain | `~/Code/Retro68-build/toolchain/` |
 | CMake toolchain file | `~/Code/Retro68-build/toolchain/m68k-apple-macos/cmake/retro68.toolchain.cmake` |
 | Basilisk II | `~/Code/Basilisk II/` |
-| Mini vMac | `roms/minivmac-macOS-SEFDHD.app` |
 
 ## Documentation
 
-See the `docs/` directory for detailed guides:
+See `docs/` for detailed guides:
 
-- **[RETRO68_SETUP.md](docs/RETRO68_SETUP.md)** — Full toolchain reference: prerequisites, build flags, troubleshooting Apple Silicon issues, Universal vs Multiversal interfaces
-- **[EMULATOR_SETUP.md](docs/EMULATOR_SETUP.md)** — Basilisk II (interactive testing) and Mini vMac (automated testing) configuration
-- **[WORKFLOW.md](docs/WORKFLOW.md)** — The edit-build-test loop using Claude Code as a coding partner
+- **[RETRO68_SETUP.md](docs/RETRO68_SETUP.md)** — Toolchain reference and troubleshooting
+- **[EMULATOR_SETUP.md](docs/EMULATOR_SETUP.md)** — Basilisk II and Mini vMac configuration
+- **[WORKFLOW.md](docs/WORKFLOW.md)** — Dev workflow with Claude Code

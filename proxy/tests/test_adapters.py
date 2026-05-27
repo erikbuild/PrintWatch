@@ -17,15 +17,21 @@ def _load_fixture(name: str) -> dict:
 
 def _prusalink_cfg() -> PrinterConfig:
     return PrinterConfig(id="mk4", name="Prusa MK4", type="prusalink",
-                         url="http://192.168.1.50", password="abc")
+                         url="http://192.168.1.50", model="MK4S",
+                         password="abc")
 
 
 def _moonraker_cfg() -> PrinterConfig:
     return PrinterConfig(id="voron", name="Voron 2.4", type="moonraker",
-                         url="http://192.168.1.60:7125")
+                         url="http://192.168.1.60:7125", model="V2.4r2")
 
 
 class TestPrusaLink:
+    def test_model_passed_through(self):
+        data = _load_fixture("prusalink_status_printing.json")
+        result = parse_status(data, _prusalink_cfg())
+        assert result.model == "MK4S"
+
     def test_printing_state(self):
         data = _load_fixture("prusalink_status_printing.json")
         result = parse_status(data, _prusalink_cfg())
@@ -66,6 +72,11 @@ class TestPrusaLink:
 
 
 class TestMoonraker:
+    def test_model_passed_through(self):
+        data = _load_fixture("moonraker_objects_printing.json")
+        result = parse_objects_query(data, _moonraker_cfg())
+        assert result.model == "V2.4r2"
+
     def test_printing_state(self):
         data = _load_fixture("moonraker_objects_printing.json")
         result = parse_objects_query(data, _moonraker_cfg())

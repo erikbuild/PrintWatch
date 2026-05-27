@@ -12,6 +12,7 @@ class PrinterConfig:
     name: str
     type: str
     url: str
+    model: str = ""
     username: str = ""
     password: str = ""
     api_key: str = ""
@@ -50,6 +51,7 @@ def load_config(path: str) -> ProxyConfig:
             name=p.get("name", p["id"]),
             type=p["type"],
             url=p["url"].rstrip("/"),
+            model=p.get("model", ""),
             username=p.get("username", ""),
             password=p.get("password", ""),
             api_key=p.get("api_key", ""),

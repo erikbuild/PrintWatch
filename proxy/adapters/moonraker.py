@@ -89,6 +89,7 @@ def parse_objects_query(data: dict, cfg: PrinterConfig) -> PrinterStatus:
         id=cfg.id,
         name=cfg.name,
         type="moonraker",
+        model=cfg.model,
         state=state,
         progress=progress,
         job=print_stats.get("filename", ""),
