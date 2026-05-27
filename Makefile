@@ -2,6 +2,8 @@
 # Actual building is delegated (CMake/Retro68 toolchain in build/,
 # emulator launches in scripts/run-*.sh). Run `make help` for targets.
 
+VERSION := 1.1
+
 .PHONY: help setup fetch-deps build-retro68 doctor build basiliskii minivmac clean
 
 help:
@@ -34,6 +36,8 @@ build:
 		cmake .. -DCMAKE_TOOLCHAIN_FILE=$(HOME)/Code/Retro68-build/toolchain/m68k-apple-macos/cmake/retro68.toolchain.cmake; \
 	fi
 	@cmake --build build/
+	@cp build/PrintWatch.bin build/PrintWatch_$(VERSION).bin
+	@echo "Output: build/PrintWatch_$(VERSION).bin"
 
 basiliskii:
 	@./scripts/run-basiliskii.sh

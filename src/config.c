@@ -25,7 +25,7 @@ void Config_Load(AppConfig *config) {
     /* Defaults */
     strcpy(config->proxyIP, "10.0.2.2");
     config->proxyPort = 8080;
-    config->pollIntervalSecs = 15;
+    config->pollIntervalSecs = 10;
     config->configured = 0;
 
     GetIndString(pstr, 128, 1);

@@ -6,7 +6,7 @@
 
 #include "network.h"
 
-#define SNAPSHOT_MAX_SIZE 10240
+#define SNAPSHOT_MAX_SIZE 16384
 
 /* Fetch snapshot for the given printer from the proxy.
    Returns 1 on success, 0 on failure or no data. */

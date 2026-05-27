@@ -9,8 +9,8 @@ from PIL import Image
 
 logger = logging.getLogger(__name__)
 
-SNAPSHOT_WIDTH = 320
-SNAPSHOT_HEIGHT = 180
+SNAPSHOT_WIDTH = 448
+SNAPSHOT_HEIGHT = 252
 
 
 def png_to_pimg(png_data: bytes) -> bytes | None:

@@ -52,7 +52,7 @@ resource 'STR#' (128) {
     {
         "10.0.2.2";
         "8080";
-        "15";
+        "10";
         "0"
     }
 };
@@ -100,9 +100,10 @@ resource 'DITL' (130) {
 
         { 10, 20, 80, 330 },
         StaticText { enabled,
-            "PrintWatch 1.0\n"
-            "3D Printer Monitor\n\n"
-            "for Mac System 7"
+            "PrintWatch 1.1\r"
+            "3D Printer Monitor\r"
+            "for Mac System 7 with MacTCP\r"
+            "Created by Erik Reynolds (@erikbuild) in 2026.\r"
         };
     }
 };

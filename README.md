@@ -50,10 +50,28 @@ printers:
     password: "your-api-key-here"
 ```
 
+### Camera Snapshots
+
+Printers with an RTSP camera (e.g. the BuddyCam on Core One) can send
+1-bit dithered snapshots to the Mac client. Requires `ffmpeg` on the proxy host.
+
+```yaml
+  - id: "core_one"
+    type: "prusalink"
+    url: "http://192.168.1.50"
+    camera: true
+    camera_url: "rtsp://192.168.1.51/live"
+```
+
+**BuddyCam setup**: RTSP must be enabled through the Prusa mobile app
+(Printer Settings > Camera > Local RTSP stream). The camera IP is separate
+from the printer IP — check your router's device list.
+
 ### API
 
 - `GET /printers` — all printer statuses as JSON
 - `GET /printers/{id}` — single printer status
+- `GET /printers/{id}/snapshot` — latest camera snapshot (binary PIMG)
 
 ### Tests
 

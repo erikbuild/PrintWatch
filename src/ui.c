@@ -277,12 +277,11 @@ void UI_DrawDetailView(WindowPtr window, PrinterStatus *printer) {
 
 void UI_DrawCameraView(WindowPtr window, PrinterStatus *printer) {
     Rect r;
-    int contentWidth, contentHeight, imgX, imgY;
+    int contentWidth, imgX, imgY;
 
     SetPort(window);
     r = window->portRect;
     contentWidth = r.right - r.left;
-    contentHeight = r.bottom - r.top - kStatusBarHeight;
 
     /* Clear content area */
     r.bottom -= kStatusBarHeight;
@@ -298,7 +297,7 @@ void UI_DrawCameraView(WindowPtr window, PrinterStatus *printer) {
     DrawCString(" \xD0 Camera");
 
     /* Draw snapshot centered below header */
-    imgX = (contentWidth - 320) / 2;
+    imgX = (contentWidth - 448) / 2;
     imgY = 24;
     if (imgX < kMarginLeft) imgX = kMarginLeft;
     if (!Snapshot_Draw(imgX, imgY)) {
@@ -308,16 +307,9 @@ void UI_DrawCameraView(WindowPtr window, PrinterStatus *printer) {
         MoveTo(kMarginLeft, imgY + 20);
         DrawCString("No snapshot available.");
     }
-
-    /* Back hint */
-    TextFont(kFontGeneva);
-    TextSize(9);
-    TextFace(0);
-    MoveTo(kMarginLeft, contentHeight - 4);
-    DrawCString("Press Esc to go back");
 }
 
-void UI_DrawStatusBar(WindowPtr window, const char *message) {
+void UI_DrawStatusBar(WindowPtr window, const char *message, const char *hint) {
     Rect r;
 
     SetPort(window);
@@ -334,6 +326,13 @@ void UI_DrawStatusBar(WindowPtr window, const char *message) {
     TextFace(0);
     MoveTo(kMarginLeft, r.top + 13);
     DrawCString(message);
+
+    if (hint && hint[0]) {
+        int len = strlen(hint);
+        int width = TextWidth(hint, 0, len);
+        MoveTo(r.right - kMarginRight - width, r.top + 13);
+        DrawCString(hint);
+    }
 }
 
 int UI_HitTestRow(int localY, int printerCount) {

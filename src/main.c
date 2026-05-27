@@ -58,6 +58,9 @@ static unsigned long gNextPollTime = 0;
 static unsigned long gProxyIP = 0;
 static int          gConsecutiveErrors = 0;
 static char         gStatusMessage[80];
+static unsigned long gNextSnapshotTime = 0;
+
+#define kSnapshotIntervalTicks (5 * 60) /* 5 seconds */
 
 static void InitToolbox(void) {
     InitGraf(&qd.thePort);
@@ -106,7 +109,7 @@ static void PollPrinters(void) {
     }
 
     strcpy(gStatusMessage, "Polling...");
-    UI_DrawStatusBar(gWindow, gStatusMessage);
+    UI_DrawStatusBar(gWindow, gStatusMessage, NULL);
 
     err = Net_HttpGet(&gNet, gProxyIP, (short)gConfig.proxyPort,
                       gConfig.proxyIP, "/printers", &body, &bodyLen);
@@ -130,7 +133,7 @@ static void PollPrinters(void) {
                 strcpy(gStatusMessage, "Network error");
                 break;
         }
-        UI_DrawStatusBar(gWindow, gStatusMessage);
+        UI_DrawStatusBar(gWindow, gStatusMessage, NULL);
         return;
     }
 
@@ -157,7 +160,7 @@ static void PollPrinters(void) {
         gConsecutiveErrors++;
         strcpy(gStatusMessage, "Bad JSON from proxy");
     }
-    UI_DrawStatusBar(gWindow, gStatusMessage);
+    UI_DrawStatusBar(gWindow, gStatusMessage, NULL);
 }
 
 static void DrawWindow(WindowPtr window) {
@@ -168,7 +171,14 @@ static void DrawWindow(WindowPtr window) {
     } else if (gCurrentView == kViewCamera) {
         UI_DrawCameraView(window, &gPrinterList.printers[gSelectedPrinter]);
     }
-    UI_DrawStatusBar(window, gStatusMessage);
+
+    {
+        const char *hint = NULL;
+        if (gCurrentView == kViewCamera) {
+            hint = "Esc=back";
+        }
+        UI_DrawStatusBar(window, gStatusMessage, hint);
+    }
 }
 
 static void ReadDlgItemText(DialogPtr dlg, short item, char *cstr, int maxLen) {
@@ -232,7 +242,7 @@ static void ShowProxyAddressDialog(void) {
         } else {
             strcpy(gStatusMessage, "Invalid address or port");
         }
-        UI_DrawStatusBar(gWindow, gStatusMessage);
+        UI_DrawStatusBar(gWindow, gStatusMessage, NULL);
     }
 
     DisposeDialog(dlg);
@@ -264,7 +274,7 @@ static void ShowPollIntervalDialog(void) {
         } else {
             strcpy(gStatusMessage, "Interval must be 5-300s");
         }
-        UI_DrawStatusBar(gWindow, gStatusMessage);
+        UI_DrawStatusBar(gWindow, gStatusMessage, NULL);
     }
 
     DisposeDialog(dlg);
@@ -289,7 +299,7 @@ static void HandleMenuChoice(long menuChoice) {
             if (menuItem == kFileRefresh) {
                 gNextPollTime = 0;
                 strcpy(gStatusMessage, "Refreshing...");
-                UI_DrawStatusBar(gWindow, gStatusMessage);
+                UI_DrawStatusBar(gWindow, gStatusMessage, NULL);
             } else if (menuItem == kFileQuit) {
                 gQuit = true;
             }
@@ -467,6 +477,19 @@ int main(void) {
                 interval = backoff;
             }
             gNextPollTime = TickCount() + interval;
+        }
+
+        /* Fetch camera snapshot every 5 seconds when in camera view */
+        if (gNetAvailable && gCurrentView == kViewCamera &&
+            TickCount() >= gNextSnapshotTime) {
+            if (gSelectedPrinter < gPrinterList.count &&
+                gPrinterList.printers[gSelectedPrinter].has_snapshot) {
+                Snapshot_Fetch(&gNet, gProxyIP, (short)gConfig.proxyPort,
+                               gConfig.proxyIP,
+                               gPrinterList.printers[gSelectedPrinter].id);
+                UI_InvalidateAll(gWindow);
+            }
+            gNextSnapshotTime = TickCount() + kSnapshotIntervalTicks;
         }
 
         if (WaitNextEvent(everyEvent, &event, 15, NULL)) {

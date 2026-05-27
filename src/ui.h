@@ -20,7 +20,8 @@ enum {
 void UI_DrawListView(WindowPtr window, PrinterList *list, int selectedIndex);
 void UI_DrawDetailView(WindowPtr window, PrinterStatus *printer);
 void UI_DrawCameraView(WindowPtr window, PrinterStatus *printer);
-void UI_DrawStatusBar(WindowPtr window, const char *message);
+void UI_DrawStatusBar(WindowPtr window, const char *message,
+                      const char *hint);
 
 /* Returns the printer index at the given local y coordinate, or -1. */
 int UI_HitTestRow(int localY, int printerCount);
