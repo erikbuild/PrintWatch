@@ -3,6 +3,7 @@
 
 #include "Dialogs.r"
 #include "Processes.r"
+#include "PrintWatchIcons.r"
 
 /* Menu bar containing Apple, File, and Options menus */
 resource 'MBAR' (128) {
@@ -38,7 +39,7 @@ resource 'MENU' (130) {
 
 /* Main window: nearly full screen on Mac SE (512x342) */
 resource 'WIND' (128) {
-    { 40, 2, 338, 510 },
+    { 40, 0, 338, 512 },
     noGrowDocProc,
     visible,
     goAway,

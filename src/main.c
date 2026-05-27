@@ -21,6 +21,7 @@
 #include "ui.h"
 #include "config.h"
 #include "network.h"
+#include "icons.h"
 #include <stdlib.h>
 
 enum {
@@ -414,6 +415,7 @@ int main(void) {
 
     gWindow = GetNewWindow(128, NULL, (WindowPtr)-1);
     SetPort(gWindow);
+    Icons_Init();
 
     PrinterList_Init(&gPrinterList);
     sprintf(gStatusMessage, "Connecting to %s:%d...",

@@ -20,5 +20,6 @@ packages = ["proxy"]
 
 [dependency-groups]
 dev = [
+    "pillow>=10.0",
     "pytest>=8.0",
 ]

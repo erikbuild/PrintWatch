@@ -3,6 +3,7 @@
 
 #include "ui.h"
 #include "printers.h"
+#include "icons.h"
 #include <Quickdraw.h>
 #include <Fonts.h>
 #include <TextUtils.h>
@@ -13,6 +14,9 @@
 #define kMarginLeft 10
 #define kMarginRight 10
 #define kProgressBarHeight 10
+#define kIconSize      32
+#define kIconRightPad  6
+#define kIconAreaWidth (kIconSize + kIconRightPad)
 
 static void DrawCString(const char *s) {
     unsigned char pstr[256];
@@ -51,8 +55,9 @@ static void DrawListRow(PrinterStatus *printer, int rowIndex, int selected,
                          int contentWidth) {
     int y = kHeaderHeight + (rowIndex * kRowHeight);
     int textY = y + 15;
+    int drawWidth = contentWidth - kIconAreaWidth;
     char buf[80];
-    Rect progressRect;
+    Rect progressRect, iconRect;
 
     /* Selection indicator */
     if (selected) {
@@ -85,13 +90,13 @@ static void DrawListRow(PrinterStatus *printer, int rowIndex, int selected,
         /* Progress bar */
         progressRect.left = kMarginLeft + 240;
         progressRect.top = y + 5;
-        progressRect.right = contentWidth - kMarginRight - 50;
+        progressRect.right = drawWidth - kMarginRight - 50;
         progressRect.bottom = progressRect.top + kProgressBarHeight;
         DrawProgressBar(&progressRect, printer->progress);
 
         /* Percentage */
         sprintf(buf, "%d%%", printer->progress);
-        MoveTo(contentWidth - kMarginRight - 45, textY);
+        MoveTo(drawWidth - kMarginRight - 45, textY);
         DrawCString(buf);
 
         /* Second line: job name and time remaining */
@@ -104,7 +109,7 @@ static void DrawListRow(PrinterStatus *printer, int rowIndex, int selected,
 
         if (printer->time_remaining > 0) {
             FormatTimeRemaining(printer->time_remaining, buf, sizeof(buf));
-            MoveTo(contentWidth - kMarginRight - 80, textY);
+            MoveTo(drawWidth - kMarginRight - 80, textY);
             DrawCString(buf);
             DrawCString(" rem");
         }
@@ -123,6 +128,13 @@ static void DrawListRow(PrinterStatus *printer, int rowIndex, int selected,
         MoveTo(kMarginLeft + 20, textY);
         DrawCString("Print complete");
     }
+
+    /* Printer model icon */
+    iconRect.left = contentWidth - kMarginRight - kIconRightPad - kIconSize;
+    iconRect.top = y + (kRowHeight - kIconSize) / 2;
+    iconRect.right = iconRect.left + kIconSize;
+    iconRect.bottom = iconRect.top + kIconSize;
+    Icons_DrawForModel(printer->model, &iconRect);
 
     /* Row separator */
     MoveTo(kMarginLeft, y + kRowHeight - 2);
@@ -156,7 +168,7 @@ void UI_DrawListView(WindowPtr window, PrinterList *list, int selectedIndex) {
 }
 
 void UI_DrawDetailView(WindowPtr window, PrinterStatus *printer) {
-    Rect r, progressRect;
+    Rect r, progressRect, iconRect;
     int contentWidth, y;
     char buf[80];
 
@@ -183,6 +195,13 @@ void UI_DrawDetailView(WindowPtr window, PrinterStatus *printer) {
         DrawCString(")");
     }
     y += 22;
+
+    /* Printer model icon (top-right) */
+    iconRect.right = contentWidth - kMarginRight;
+    iconRect.left = iconRect.right - kIconSize;
+    iconRect.top = 5;
+    iconRect.bottom = iconRect.top + kIconSize;
+    Icons_DrawForModel(printer->model, &iconRect);
 
     /* Separator */
     MoveTo(kMarginLeft, y);
