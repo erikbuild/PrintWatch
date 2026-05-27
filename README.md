@@ -2,6 +2,8 @@
 
 A 3D printer monitoring app for the Macintosh SE, built for System 7. A Python proxy polls modern printer APIs (PrusaLink, Moonraker) and serves normalized status over HTTP/1.0 for the classic Mac client.
 
+![PrintWatch demo](assets/printwatch-demo.gif)
+
 ## Architecture
 
 ```
