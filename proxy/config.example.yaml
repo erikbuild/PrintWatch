@@ -3,6 +3,10 @@ proxy:
   port: 8080
   poll_interval: 10
 
+# Supported model values (matched as substrings, controls icon in UI):
+#   mk4, mk3, mini, core_one, core_one_l, xl,
+#   v2.4, trident, v0, positron, p1s, micron
+
 printers:
   - id: "mk4"
     name: "Prusa MK4"

@@ -1,63 +1,50 @@
-# ABOUTME: Converts PNG images to 1-bit 32x32 Rez ICON resource definitions.
-# ABOUTME: Reads from assets/icons/, writes resources/PrintWatchIcons.r.
+# ABOUTME: Converts PNG images to 1-bit Rez resources for the classic Mac client.
+# ABOUTME: Reads model config from assets/icons/models.yaml, generates Rez and C sources.
 
 import argparse
+import math
 import sys
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageDraw
+import yaml
 
-ICON_SIZE = 32
-ICON_BYTES = (ICON_SIZE * ICON_SIZE) // 8  # 128 bytes
-
-ICON_MAP = {
-    "generic":   200,
-    "mk4":       201,
-    "mk3":       202,
-    "mini":      203,
-    "core_one":  204,
-    "xl":        205,
-    "v2_4":      206,
-    "trident":   207,
-    "k1":        208,
-    "ender":     209,
-    "bambu":     210,
-}
-
-ICON_NAMES = {
-    200: "Generic 3D Printer",
-    201: "Prusa MK4",
-    202: "Prusa MK3S+",
-    203: "Prusa MINI+",
-    204: "Prusa Core One",
-    205: "Prusa XL",
-    206: "Voron 2.4",
-    207: "Voron Trident",
-    208: "Creality K1",
-    209: "Creality Ender 3",
-    210: "Bambu Lab",
-}
+MAX_HEIGHT = 200
 
 
-def png_to_icon_bytes(path: Path, threshold: bool = False) -> bytes:
-    """Convert a PNG to 128 bytes of 1-bit bitmap data (32x32)."""
-    img = Image.open(path).convert("L").resize(
-        (ICON_SIZE, ICON_SIZE), Image.LANCZOS
-    )
-    if threshold:
-        bw = img.point(lambda x: 0 if x < 128 else 255, "1")
-    else:
-        bw = img.convert("1")
+def load_models(models_path: Path) -> list[dict]:
+    with open(models_path) as f:
+        data = yaml.safe_load(f)
+    return data["models"]
 
+
+def png_to_bitmap(path: Path) -> tuple[int, int, int, bytes]:
+    """Convert a PNG to 1-bit bitmap data, scaled to fit MAX_HEIGHT.
+
+    Returns (width, height, rowBytes, bitmap_data).
+    """
+    img = Image.open(path).convert("L")
+    w, h = img.size
+
+    if h > MAX_HEIGHT:
+        scale = MAX_HEIGHT / h
+        w = int(w * scale)
+        h = MAX_HEIGHT
+        img = img.resize((w, h), Image.LANCZOS)
+
+    bw = img.point(lambda x: 0 if x < 128 else 255, "1")
+
+    row_bytes = ((w + 15) // 16) * 2
     pixels = list(bw.get_flattened_data())
-    result = bytearray(ICON_BYTES)
-    for row in range(ICON_SIZE):
-        for col in range(ICON_SIZE):
-            pixel = pixels[row * ICON_SIZE + col]
-            if pixel == 0:
-                byte_idx = row * 4 + col // 8
+    result = bytearray(row_bytes * h)
+
+    for row in range(h):
+        for col in range(w):
+            if pixels[row * w + col] == 0:
+                byte_idx = row * row_bytes + col // 8
                 bit_idx = 7 - (col % 8)
                 result[byte_idx] |= (1 << bit_idx)
-    return bytes(result)
+
+    return w, h, row_bytes, bytes(result)
 
 
 def format_hex_lines(data: bytes, bytes_per_line: int = 16) -> list[str]:
@@ -65,6 +52,8 @@ def format_hex_lines(data: bytes, bytes_per_line: int = 16) -> list[str]:
     lines = []
     for i in range(0, len(data), bytes_per_line):
         chunk = data[i:i + bytes_per_line]
+        if len(chunk) % 2 != 0:
+            chunk = chunk + b'\x00'
         pairs = " ".join(
             f"{chunk[j]:02X}{chunk[j+1]:02X}" for j in range(0, len(chunk), 2)
         )
@@ -72,63 +61,179 @@ def format_hex_lines(data: bytes, bytes_per_line: int = 16) -> list[str]:
     return lines
 
 
-def generate_rez(icons: dict[int, bytes]) -> str:
-    """Generate a complete Rez source file from icon data."""
+def generate_preview(models: list[dict],
+                     bitmaps: dict[int, tuple[int, int, int, bytes]],
+                     path: str, scale: int = 2):
+    """Render all icons into a single preview PNG."""
+    names = {m["id"]: m["name"] for m in models}
+    pad = 10
+    total_w = 0
+    max_h = 0
+    for res_id in sorted(bitmaps.keys()):
+        w, h, _, _ = bitmaps[res_id]
+        total_w += w * scale + pad
+        max_h = max(max_h, h * scale)
+
+    img = Image.new("1", (total_w + pad, max_h + 30 * scale), 1)
+    draw = ImageDraw.Draw(img)
+
+    x0 = pad
+    for res_id in sorted(bitmaps.keys()):
+        w, h, row_bytes, data = bitmaps[res_id]
+        for py in range(h):
+            for px in range(w):
+                byte_idx = py * row_bytes + px // 8
+                bit_idx = 7 - (px % 8)
+                if data[byte_idx] & (1 << bit_idx):
+                    sx, sy = x0 + px * scale, pad + py * scale
+                    draw.rectangle(
+                        [sx, sy, sx + scale - 1, sy + scale - 1], fill=0
+                    )
+        label = names.get(res_id, str(res_id))
+        draw.text((x0, pad + h * scale + 4), label, fill=0)
+        x0 += w * scale + pad
+
+    img.save(path)
+    print(f"Preview saved to {path}")
+
+
+def generate_rez(models: list[dict],
+                 bitmaps: dict[int, tuple[int, int, int, bytes]]) -> str:
+    """Generate Rez source with PIMG resources (width, height, rowBytes + bitmap)."""
+    names = {m["id"]: m["name"] for m in models}
     parts = [
-        "/* ABOUTME: Generated 32x32 1-bit printer model icons. */",
+        "/* ABOUTME: Generated 1-bit printer model images. */",
         "/* ABOUTME: Auto-generated by scripts/generate_icons.py — do not edit by hand. */",
         "",
     ]
-    for res_id in sorted(icons.keys()):
-        name = ICON_NAMES.get(res_id, "Unknown")
-        hex_lines = format_hex_lines(icons[res_id])
-        parts.append(f'data \'ICON\' ({res_id}, "{name}") {{')
+    for res_id in sorted(bitmaps.keys()):
+        name = names.get(res_id, "Unknown")
+        w, h, row_bytes, data = bitmaps[res_id]
+        header = (
+            w.to_bytes(2, "big")
+            + h.to_bytes(2, "big")
+            + row_bytes.to_bytes(2, "big")
+        )
+        hex_lines = format_hex_lines(header + data)
+        parts.append(f'data \'PIMG\' ({res_id}, "{name}") {{')
         parts.extend(hex_lines)
         parts.append("};")
         parts.append("")
     return "\n".join(parts)
 
 
+def generate_c_mapping(models: list[dict]) -> str:
+    """Generate the C icon mapping table as an includable .inc file."""
+    fallback_id = None
+    entries = []
+
+    for m in models:
+        if "match" not in m:
+            fallback_id = m["id"]
+            continue
+        entries.append(
+            f'    {{ "{m["match"]}", {m["id"]} }}'
+        )
+
+    all_ids = [m["id"] for m in models]
+    lines = [
+        "/* ABOUTME: Generated icon mapping table. */",
+        "/* ABOUTME: Auto-generated by scripts/generate_icons.py — do not edit by hand. */",
+        "",
+        "static const IconMapping kIconMap[] = {",
+    ]
+    lines.append(",\n".join(entries) + ",")
+    lines.append("    { NULL, 0 }")
+    lines.append("};")
+    lines.append("")
+    lines.append(f"#define kGenericIconID {fallback_id}")
+    lines.append(f"#define kFirstIconID   {min(all_ids)}")
+    lines.append(f"#define kLastIconID    {max(all_ids)}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def generate_python_mapping(models: list[dict]) -> str:
+    """Generate a Python dict mapping model match strings to display names."""
+    lines = [
+        "# ABOUTME: Generated model-to-display-name mapping.",
+        "# ABOUTME: Auto-generated by scripts/generate_icons.py — do not edit by hand.",
+        "",
+        "MODEL_NAMES = {",
+    ]
+    for m in models:
+        if "match" in m:
+            lines.append(f'    "{m["match"]}": "{m["name"]}",')
+    lines.append("}")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Convert PNG icons to Rez ICON resources"
+        description="Convert PNG icons to Rez PIMG resources"
     )
     parser.add_argument(
         "--input", default="assets/icons",
-        help="Directory containing source PNGs (default: assets/icons)"
+        help="Directory containing source PNGs and models.yaml (default: assets/icons)"
     )
     parser.add_argument(
         "--output", default="resources/PrintWatchIcons.r",
         help="Output Rez file (default: resources/PrintWatchIcons.r)"
     )
     parser.add_argument(
-        "--threshold", action="store_true",
-        help="Use threshold instead of Floyd-Steinberg dithering"
+        "--c-output", default="src/icon_map.inc",
+        help="Output C mapping table (default: src/icon_map.inc)"
+    )
+    parser.add_argument(
+        "--py-output", default="proxy/model_names.py",
+        help="Output Python name mapping (default: proxy/model_names.py)"
+    )
+    parser.add_argument(
+        "--preview", default=None,
+        help="Output a scaled-up preview PNG grid (e.g. --preview preview.png)"
     )
     args = parser.parse_args()
 
     input_dir = Path(args.input)
-    if not input_dir.is_dir():
-        print(f"Input directory not found: {input_dir}", file=sys.stderr)
+    models_path = input_dir / "models.yaml"
+    if not models_path.exists():
+        print(f"Model config not found: {models_path}", file=sys.stderr)
         sys.exit(1)
 
-    icons = {}
-    for stem, res_id in ICON_MAP.items():
-        png_path = input_dir / f"{stem}.png"
-        if png_path.exists():
-            icons[res_id] = png_to_icon_bytes(png_path, args.threshold)
-            print(f"  {stem}.png -> ICON {res_id} ({ICON_NAMES[res_id]})")
-        else:
-            print(f"  {stem}.png not found, skipping ICON {res_id}")
+    models = load_models(models_path)
 
-    if not icons:
+    bitmaps = {}
+    for m in models:
+        png_path = input_dir / f"{m['file']}.png"
+        if png_path.exists():
+            w, h, rb, data = png_to_bitmap(png_path)
+            bitmaps[m["id"]] = (w, h, rb, data)
+            print(f"  {m['file']}.png -> PIMG {m['id']} ({w}x{h}, {len(data)+6}B)")
+        else:
+            print(f"  {m['file']}.png not found, skipping PIMG {m['id']}")
+
+    if not bitmaps:
         print("No icons found. Place PNGs in assets/icons/.", file=sys.stderr)
         sys.exit(1)
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(generate_rez(icons))
-    print(f"\nWrote {len(icons)} icon(s) to {output_path}")
+    output_path.write_text(generate_rez(models, bitmaps))
+    print(f"\nWrote {len(bitmaps)} image(s) to {output_path}")
+
+    c_output_path = Path(args.c_output)
+    c_output_path.parent.mkdir(parents=True, exist_ok=True)
+    c_output_path.write_text(generate_c_mapping(models))
+    print(f"Wrote C mapping table to {c_output_path}")
+
+    py_output_path = Path(args.py_output)
+    py_output_path.parent.mkdir(parents=True, exist_ok=True)
+    py_output_path.write_text(generate_python_mapping(models))
+    print(f"Wrote Python name mapping to {py_output_path}")
+
+    if args.preview:
+        generate_preview(models, bitmaps, args.preview)
 
 
 if __name__ == "__main__":

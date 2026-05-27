@@ -6,9 +6,14 @@ import logging
 import httpx
 from .config import ProxyConfig, PrinterConfig
 from .models import PrinterStatus
+from .model_names import MODEL_NAMES
 from .adapters import prusalink, moonraker
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_model_name(model: str) -> str:
+    return MODEL_NAMES.get(model, model)
 
 
 class Poller:
@@ -21,7 +26,7 @@ class Poller:
         for p in config.printers:
             self.cache[p.id] = PrinterStatus(
                 id=p.id, name=p.name, type=p.type, model=p.model,
-                state="offline"
+                model_name=_resolve_model_name(p.model), state="offline"
             )
             if p.type == "moonraker":
                 self._metadata_caches[p.id] = {}
@@ -52,6 +57,7 @@ class Poller:
                             id=cfg.id, name=cfg.name, type=cfg.type, state="offline",
                             error=f"Unknown type: {cfg.type}"
                         )
+                    status.model_name = _resolve_model_name(cfg.model)
                     self.cache[cfg.id] = status
                 except asyncio.CancelledError:
                     raise
@@ -59,7 +65,8 @@ class Poller:
                     logger.warning("Poll failed for %s: %s", cfg.id, e)
                     self.cache[cfg.id] = PrinterStatus(
                         id=cfg.id, name=cfg.name, type=cfg.type,
-                        model=cfg.model, state="offline", error=str(e)
+                        model=cfg.model, model_name=_resolve_model_name(cfg.model),
+                        state="offline", error=str(e)
                     )
 
                 await asyncio.sleep(self.config.poll_interval)

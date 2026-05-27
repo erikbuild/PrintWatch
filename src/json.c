@@ -78,6 +78,8 @@ static int ParsePrinterObject(const char *json, jsmntok_t *tokens,
             json_strcpy(json, &tokens[j + 1], printer->type, MAX_TYPE_LEN);
         } else if (jsoneq(json, &tokens[j], "model") == 0) {
             json_strcpy(json, &tokens[j + 1], printer->model, MAX_MODEL_LEN);
+        } else if (jsoneq(json, &tokens[j], "model_name") == 0) {
+            json_strcpy(json, &tokens[j + 1], printer->model_name, MAX_MODEL_NAME_LEN);
         } else if (jsoneq(json, &tokens[j], "state") == 0) {
             json_strcpy(json, &tokens[j + 1], printer->state, MAX_STATE_LEN);
         } else if (jsoneq(json, &tokens[j], "progress") == 0) {

@@ -1,45 +1,31 @@
-/* ABOUTME: Printer model icon lookup and drawing.
-   ABOUTME: Maps model strings to cached ICON resource handles via substring matching. */
+/* ABOUTME: Printer model image lookup and drawing.
+   ABOUTME: Maps model strings to cached PIMG resource handles via substring matching. */
 
 #include "icons.h"
 #include <Resources.h>
-#include <Icons.h>
+#include <MacMemory.h>
+#include <Quickdraw.h>
 #include <string.h>
-
-#define kFirstIconID 200
-#define kLastIconID  210
-#define kNumIcons    (kLastIconID - kFirstIconID + 1)
 
 typedef struct {
     const char *substring;
     short       iconID;
 } IconMapping;
 
-/* Ordered most-specific-first so "Core One" matches before shorter strings. */
-static const IconMapping kIconMap[] = {
-    { "Core One",  204 },
-    { "Trident",   207 },
-    { "Ender",     209 },
-    { "MINI",      203 },
-    { "Bambu",     210 },
-    { "MK4",       201 },
-    { "MK3",       202 },
-    { "XL",        205 },
-    { "V2.4",      206 },
-    { "K1",        208 },
-    { NULL,          0 }
-};
+#include "icon_map.inc"
 
-static Handle gIconCache[kNumIcons];
+#define kNumIcons (kLastIconID - kFirstIconID + 1)
+
+static Handle gImageCache[kNumIcons];
 
 void Icons_Init(void) {
     int i;
     for (i = 0; i < kNumIcons; i++) {
-        gIconCache[i] = GetIcon(kFirstIconID + i);
+        gImageCache[i] = GetResource('PIMG', kFirstIconID + i);
     }
 }
 
-static Handle LookupIcon(const char *model) {
+static Handle LookupImage(const char *model) {
     const IconMapping *m;
     int idx;
 
@@ -47,18 +33,60 @@ static Handle LookupIcon(const char *model) {
         for (m = kIconMap; m->substring != NULL; m++) {
             if (strstr(model, m->substring) != NULL) {
                 idx = m->iconID - kFirstIconID;
-                if (idx >= 0 && idx < kNumIcons && gIconCache[idx]) {
-                    return gIconCache[idx];
+                if (idx >= 0 && idx < kNumIcons && gImageCache[idx]) {
+                    return gImageCache[idx];
                 }
             }
         }
     }
-    return gIconCache[0];
+    idx = kGenericIconID - kFirstIconID;
+    if (idx >= 0 && idx < kNumIcons) {
+        return gImageCache[idx];
+    }
+    return NULL;
 }
 
-void Icons_DrawForModel(const char *model, const Rect *iconRect) {
-    Handle icon = LookupIcon(model);
-    if (icon) {
-        PlotIcon(iconRect, icon);
+int Icons_GetSize(const char *model, int *width, int *height) {
+    Handle h = LookupImage(model);
+    short *header;
+
+    *width = 0;
+    *height = 0;
+    if (!h || !*h) {
+        return 0;
     }
+
+    header = (short *)*h;
+    *width = header[0];
+    *height = header[1];
+    return 1;
+}
+
+void Icons_Draw(const char *model, int x, int y) {
+    Handle h = LookupImage(model);
+    short *header;
+    short w, ht, rowBytes;
+    BitMap srcBits;
+    Rect srcRect, dstRect;
+    GrafPtr port;
+
+    if (!h || !*h) {
+        return;
+    }
+
+    HLock(h);
+    header = (short *)*h;
+    w = header[0];
+    ht = header[1];
+    rowBytes = header[2];
+
+    srcBits.baseAddr = *h + 6;
+    srcBits.rowBytes = rowBytes;
+    SetRect(&srcBits.bounds, 0, 0, w, ht);
+    SetRect(&srcRect, 0, 0, w, ht);
+    SetRect(&dstRect, x, y, x + w, y + ht);
+
+    GetPort(&port);
+    CopyBits(&srcBits, &port->portBits, &srcRect, &dstRect, srcCopy, NULL);
+    HUnlock(h);
 }

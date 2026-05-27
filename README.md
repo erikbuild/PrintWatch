@@ -44,7 +44,7 @@ printers:
   - id: "mk4"
     name: "Prusa MK4"
     type: "prusalink"   # or "moonraker"
-    model: "MK4S"       # shown in UI after printer name
+    model: "mk4"        # controls icon in detail view (see models.yaml)
     url: "http://192.168.1.50"
     username: "maker"
     password: "your-api-key-here"
@@ -60,6 +60,33 @@ printers:
 ```bash
 uv run pytest proxy/tests/
 ```
+
+### Printer Model Images
+
+The Mac client shows a 1-bit dithered image of the printer model in the detail view. All model definitions live in a single source of truth: `assets/icons/models.yaml`. The generation script reads it and produces three outputs:
+
+- `resources/PrintWatchIcons.r` — Rez PIMG resources (compiled into the Mac app)
+- `src/icon_map.inc` — C lookup table mapping model strings to resource IDs
+- `proxy/model_names.py` — Python dict mapping model strings to display names
+
+```bash
+# Generate all outputs from models.yaml + source PNGs
+uv run python scripts/generate_icons.py
+
+# Also generate a scaled-up preview image for visual QA
+uv run python scripts/generate_icons.py --preview preview.png
+```
+
+To add a new printer model:
+
+1. Add an entry to `assets/icons/models.yaml`
+2. Drop a pre-dithered 1-bit PNG in `assets/icons/` (max 200px tall)
+3. Run `uv run python scripts/generate_icons.py`
+4. Rebuild the Mac app
+
+Models with images: `core_one`, `core_one_l`, `micron`, `positron`, `v0`, `v2_4`, `xl`. Others fall back to no image.
+
+The generated files are committed so the Retro68 build doesn't depend on Pillow.
 
 ## Mac SE Client
 

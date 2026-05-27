@@ -14,9 +14,7 @@
 #define kMarginLeft 10
 #define kMarginRight 10
 #define kProgressBarHeight 10
-#define kIconSize      32
-#define kIconRightPad  6
-#define kIconAreaWidth (kIconSize + kIconRightPad)
+#define kImagePad 10
 
 static void DrawCString(const char *s) {
     unsigned char pstr[256];
@@ -55,9 +53,8 @@ static void DrawListRow(PrinterStatus *printer, int rowIndex, int selected,
                          int contentWidth) {
     int y = kHeaderHeight + (rowIndex * kRowHeight);
     int textY = y + 15;
-    int drawWidth = contentWidth - kIconAreaWidth;
     char buf[80];
-    Rect progressRect, iconRect;
+    Rect progressRect;
 
     /* Selection indicator */
     if (selected) {
@@ -74,12 +71,6 @@ static void DrawListRow(PrinterStatus *printer, int rowIndex, int selected,
     TextFace(bold);
     MoveTo(kMarginLeft, textY);
     DrawCString(printer->name);
-    if (printer->model[0]) {
-        TextFace(0);
-        DrawCString(" (");
-        DrawCString(printer->model);
-        DrawCString(")");
-    }
 
     /* State */
     TextSize(9);
@@ -90,51 +81,43 @@ static void DrawListRow(PrinterStatus *printer, int rowIndex, int selected,
         /* Progress bar */
         progressRect.left = kMarginLeft + 240;
         progressRect.top = y + 5;
-        progressRect.right = drawWidth - kMarginRight - 50;
+        progressRect.right = contentWidth - kMarginRight - 50;
         progressRect.bottom = progressRect.top + kProgressBarHeight;
         DrawProgressBar(&progressRect, printer->progress);
 
         /* Percentage */
         sprintf(buf, "%d%%", printer->progress);
-        MoveTo(drawWidth - kMarginRight - 45, textY);
+        MoveTo(contentWidth - kMarginRight - 45, textY);
         DrawCString(buf);
+    }
 
-        /* Second line: job name and time remaining */
-        textY = y + 32;
-        TextFont(kFontGeneva);
-        TextSize(9);
-        TextFace(0);
-        MoveTo(kMarginLeft + 20, textY);
+    /* Second line: model name on left, context info on right */
+    textY = y + 32;
+    TextFont(kFontGeneva);
+    TextSize(9);
+    TextFace(0);
+
+    if (printer->model_name[0]) {
+        MoveTo(kMarginLeft + 4, textY);
+        DrawCString(printer->model_name);
+    }
+
+    if (PrinterIsActive(printer)) {
+        MoveTo(kMarginLeft + 140, textY);
         DrawCString(printer->job);
-
         if (printer->time_remaining > 0) {
             FormatTimeRemaining(printer->time_remaining, buf, sizeof(buf));
-            MoveTo(drawWidth - kMarginRight - 80, textY);
+            MoveTo(contentWidth - kMarginRight - 80, textY);
             DrawCString(buf);
             DrawCString(" rem");
         }
     } else if (strcmp(printer->state, "error") == 0 && printer->error[0]) {
-        textY = y + 32;
-        TextFont(kFontGeneva);
-        TextSize(9);
-        TextFace(0);
-        MoveTo(kMarginLeft + 20, textY);
+        MoveTo(kMarginLeft + 140, textY);
         DrawCString(printer->error);
     } else if (strcmp(printer->state, "finished") == 0) {
-        textY = y + 32;
-        TextFont(kFontGeneva);
-        TextSize(9);
-        TextFace(0);
-        MoveTo(kMarginLeft + 20, textY);
+        MoveTo(kMarginLeft + 140, textY);
         DrawCString("Print complete");
     }
-
-    /* Printer model icon */
-    iconRect.left = contentWidth - kMarginRight - kIconRightPad - kIconSize;
-    iconRect.top = y + (kRowHeight - kIconSize) / 2;
-    iconRect.right = iconRect.left + kIconSize;
-    iconRect.bottom = iconRect.top + kIconSize;
-    Icons_DrawForModel(printer->model, &iconRect);
 
     /* Row separator */
     MoveTo(kMarginLeft, y + kRowHeight - 2);
@@ -168,8 +151,8 @@ void UI_DrawListView(WindowPtr window, PrinterList *list, int selectedIndex) {
 }
 
 void UI_DrawDetailView(WindowPtr window, PrinterStatus *printer) {
-    Rect r, progressRect, iconRect;
-    int contentWidth, y;
+    Rect r, progressRect;
+    int contentWidth, y, textLeft, imgW, imgH;
     char buf[80];
 
     SetPort(window);
@@ -180,81 +163,73 @@ void UI_DrawDetailView(WindowPtr window, PrinterStatus *printer) {
     r.bottom -= kStatusBarHeight;
     EraseRect(&r);
 
-    y = 20;
+    y = kMarginLeft;
+    textLeft = kMarginLeft;
+
+    /* Printer model image (top-left) */
+    if (Icons_GetSize(printer->model, &imgW, &imgH)) {
+        Icons_Draw(printer->model, kMarginLeft, y);
+        textLeft = kMarginLeft + imgW + kImagePad;
+    }
 
     /* Printer name */
     TextFont(kFontGeneva);
     TextSize(12);
     TextFace(bold);
-    MoveTo(kMarginLeft, y);
+    MoveTo(textLeft, y + 14);
     DrawCString(printer->name);
-    if (printer->model[0]) {
+    if (printer->model_name[0]) {
         TextFace(0);
         DrawCString(" (");
-        DrawCString(printer->model);
+        DrawCString(printer->model_name);
         DrawCString(")");
     }
-    y += 22;
-
-    /* Printer model icon (top-right) */
-    iconRect.right = contentWidth - kMarginRight;
-    iconRect.left = iconRect.right - kIconSize;
-    iconRect.top = 5;
-    iconRect.bottom = iconRect.top + kIconSize;
-    Icons_DrawForModel(printer->model, &iconRect);
-
-    /* Separator */
-    MoveTo(kMarginLeft, y);
-    LineTo(contentWidth - kMarginRight, y);
-    y += 16;
 
     /* State */
     TextFont(kFontGeneva);
     TextSize(10);
     TextFace(0);
-    MoveTo(kMarginLeft, y);
+    MoveTo(textLeft, y + 32);
     DrawCString("State:    ");
     TextFace(bold);
     DrawCString(printer->state);
     TextFace(0);
-    y += 18;
 
     /* Job */
     if (printer->job[0]) {
-        MoveTo(kMarginLeft, y);
+        MoveTo(textLeft, y + 50);
         DrawCString("Job:      ");
         DrawCString(printer->job);
-        y += 18;
     }
 
-    /* Progress bar (wide) */
+    /* Progress */
     if (PrinterIsActive(printer)) {
-        MoveTo(kMarginLeft, y);
+        MoveTo(textLeft, y + 68);
         DrawCString("Progress:");
-        progressRect.left = kMarginLeft + 80;
-        progressRect.top = y - 10;
+        progressRect.left = textLeft + 70;
+        progressRect.top = y + 58;
         progressRect.right = contentWidth - kMarginRight - 60;
         progressRect.bottom = progressRect.top + 14;
-        DrawProgressBar(&progressRect, printer->progress);
+        if (progressRect.right > progressRect.left + 20) {
+            DrawProgressBar(&progressRect, printer->progress);
+        }
         sprintf(buf, " %d%%", printer->progress);
-        MoveTo(contentWidth - kMarginRight - 55, y);
+        MoveTo(contentWidth - kMarginRight - 55, y + 68);
         DrawCString(buf);
-        y += 22;
 
-        /* Time remaining */
         if (printer->time_remaining > 0) {
-            MoveTo(kMarginLeft, y);
+            MoveTo(textLeft, y + 86);
             DrawCString("Remaining:");
             FormatTimeRemaining(printer->time_remaining, buf, sizeof(buf));
-            MoveTo(kMarginLeft + 80, y);
+            MoveTo(textLeft + 70, y + 86);
             DrawCString(buf);
-            y += 18;
         }
     }
 
-    y += 8;
+    /* Temperature section — below the image */
+    y = kMarginLeft + imgH + kImagePad;
+    if (y < 110) y = 110;
 
-    /* Temperature section */
     MoveTo(kMarginLeft, y);
     TextFace(bold);
     DrawCString("Temperatures");
@@ -264,14 +239,12 @@ void UI_DrawDetailView(WindowPtr window, PrinterStatus *printer) {
     LineTo(contentWidth - kMarginRight, y);
     y += 16;
 
-    /* Nozzle */
     MoveTo(kMarginLeft, y);
     DrawCString("Nozzle:   ");
     sprintf(buf, "%dC / %dC", printer->nozzle_temp, printer->nozzle_target);
     DrawCString(buf);
     y += 18;
 
-    /* Bed */
     MoveTo(kMarginLeft, y);
     DrawCString("Bed:      ");
     sprintf(buf, "%dC / %dC", printer->bed_temp, printer->bed_target);
