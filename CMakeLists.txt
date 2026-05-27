@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.9)
 project(PrintWatch C)
 
 add_application(PrintWatch
+    CREATOR "PWch"
     resources/PrintWatch.r
     src/main.c
     src/printers.c

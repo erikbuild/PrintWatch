@@ -100,7 +100,7 @@ resource 'DITL' (130) {
 
         { 10, 20, 80, 330 },
         StaticText { enabled,
-            "PrintWatch 1.1\r"
+            "PrintWatch 1.2\r"
             "3D Printer Monitor\r"
             "for Mac System 7 with MacTCP\r"
             "Created by Erik Reynolds (@erikbuild) in 2026.\r"
@@ -174,6 +174,96 @@ resource 'DITL' (132) {
         { 38, 15, 54, 290 },
         StaticText { enabled, "How often to poll the proxy." };
     }
+};
+
+/* Application icon */
+resource 'ICN#' (128) {
+    {
+        $"0000 7FE0"
+        $"0000 8010"
+        $"0001 0008"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1C01 0038"
+        $"1C00 8038"
+        $"1C00 8038"
+        $"1C03 C038"
+        $"1C03 C038"
+        $"1FFF FFF8"
+        $"1E03 C078"
+        $"1E03 C078"
+        $"1C01 8038"
+        $"1C00 0038"
+        $"1C00 0038"
+        $"1C00 0038"
+        $"1C00 0038"
+        $"1C7F FE38"
+        $"1CC0 0338"
+        $"1C80 0138"
+        $"1FFF FFF8"
+        $"1CE0 0738"
+        $"1CE0 0738"
+        $"3FFF FFFC"
+        $"2000 0204"
+        $"200F F504"
+        $"2008 1504"
+        $"200F F204"
+        $"3FFF FFFC"
+        $"1800 0018",
+
+        $"0000 7FE0"
+        $"0000 FFF0"
+        $"0001 FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"1FFF FFF8"
+        $"3FFF FFFC"
+        $"3FFF FFFC"
+        $"3FFF FFFC"
+        $"3FFF FFFC"
+        $"3FFF FFFC"
+        $"3FFF FFFC"
+        $"1FFF FFF8"
+    }
+};
+
+/* File reference: APPL type uses icon 128 */
+resource 'FREF' (128) {
+    'APPL', 0, ""
+};
+
+/* Bundle: ties creator code to icons */
+resource 'BNDL' (128) {
+    'PWch', 0,
+    {
+        'ICN#', { 0, 128 },
+        'FREF', { 0, 128 }
+    }
+};
+
+/* Owner resource for Finder to associate the bundle */
+data 'PWch' (0, "Owner resource") {
+    $"00"
 };
 
 /* SIZE resource: memory requirements */

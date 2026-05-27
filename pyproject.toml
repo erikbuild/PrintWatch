@@ -1,6 +1,6 @@
 [project]
 name = "printwatch-proxy"
-version = "1.1.0"
+version = "1.2.0"
 description = "Polling proxy that bridges 3D printer APIs for the PrintWatch Mac SE client"
 requires-python = ">=3.12"
 dependencies = [

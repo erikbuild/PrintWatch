@@ -2,7 +2,7 @@
 # Actual building is delegated (CMake/Retro68 toolchain in build/,
 # emulator launches in scripts/run-*.sh). Run `make help` for targets.
 
-VERSION := 1.1
+VERSION := 1.2
 
 .PHONY: help setup fetch-deps build-retro68 doctor build basiliskii minivmac clean
 
