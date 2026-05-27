@@ -23,7 +23,8 @@ printers:
     url: "http://192.168.1.51"
     username: "maker"
     password: "your-api-key-here"
-    camera: true                    # enable BuddyCam snapshots
+    camera: true                    # enable camera snapshots
+    camera_url: "rtsp://192.168.1.52/live"  # BuddyCam RTSP stream
 
   - id: "voron"
     name: "Voron 2.4"

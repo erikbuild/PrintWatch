@@ -1,6 +1,7 @@
-# ABOUTME: Converts camera PNG snapshots to 1-bit PIMG binary for the Mac client.
-# ABOUTME: Resizes to fixed dimensions, applies Floyd-Steinberg dithering, packs as big-endian bitmap.
+# ABOUTME: Grabs camera frames via RTSP and converts to 1-bit PIMG binary for the Mac client.
+# ABOUTME: Uses ffmpeg for RTSP, then resizes, dithers, and packs as big-endian bitmap.
 
+import asyncio
 import logging
 import struct
 from io import BytesIO
@@ -40,3 +41,36 @@ def png_to_pimg(png_data: bytes) -> bytes | None:
 
     header = struct.pack(">hhh", SNAPSHOT_WIDTH, SNAPSHOT_HEIGHT, row_bytes)
     return header + bytes(bitmap)
+
+
+async def grab_rtsp_frame(url: str) -> bytes | None:
+    """Grab a single frame from an RTSP stream as PNG bytes via ffmpeg."""
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "ffmpeg", "-y",
+            "-rtsp_transport", "tcp",
+            "-i", url,
+            "-vframes", "1",
+            "-f", "image2pipe", "-vcodec", "png",
+            "pipe:1",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=10)
+    except asyncio.TimeoutError:
+        logger.warning("RTSP frame grab timed out for %s", url)
+        proc.kill()
+        return None
+    except Exception as e:
+        logger.warning("RTSP frame grab failed for %s: %s", url, e)
+        return None
+
+    if proc.returncode != 0:
+        logger.debug("ffmpeg exited %d for %s: %s", proc.returncode, url,
+                      stderr.decode(errors="replace")[:200])
+        return None
+
+    if not stdout:
+        return None
+
+    return stdout

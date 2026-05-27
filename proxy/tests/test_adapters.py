@@ -3,9 +3,7 @@
 
 import json
 import os
-import httpx
-import pytest
-from proxy.adapters.prusalink import parse_status, poll_snapshot, PRUSALINK_STATE_MAP
+from proxy.adapters.prusalink import parse_status, PRUSALINK_STATE_MAP
 from proxy.adapters.moonraker import parse_objects_query, MOONRAKER_STATE_MAP
 from proxy.adapters.bambulab import parse_report, merge_state, BAMBU_STATE_MAP
 from proxy.config import PrinterConfig
@@ -78,54 +76,6 @@ class TestPrusaLink:
         result = parse_status(data, _prusalink_cfg())
         assert isinstance(result.nozzle_temp, int)
         assert isinstance(result.bed_temp, int)
-
-
-class TestPrusaLinkSnapshot:
-    @pytest.mark.asyncio
-    async def test_poll_snapshot_returns_bytes_on_200(self, httpx_mock):
-        cfg = _prusalink_cfg()
-        png_bytes = b"\x89PNG\r\n\x1a\nfake_png_data"
-        httpx_mock.add_response(
-            url=f"{cfg.url}/api/v1/cameras/snap",
-            content=png_bytes,
-            status_code=200,
-        )
-        async with httpx.AsyncClient() as client:
-            result = await poll_snapshot(client, cfg)
-        assert result == png_bytes
-
-    @pytest.mark.asyncio
-    async def test_poll_snapshot_returns_none_on_204(self, httpx_mock):
-        cfg = _prusalink_cfg()
-        httpx_mock.add_response(
-            url=f"{cfg.url}/api/v1/cameras/snap",
-            status_code=204,
-        )
-        async with httpx.AsyncClient() as client:
-            result = await poll_snapshot(client, cfg)
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_poll_snapshot_returns_none_on_404(self, httpx_mock):
-        cfg = _prusalink_cfg()
-        httpx_mock.add_response(
-            url=f"{cfg.url}/api/v1/cameras/snap",
-            status_code=404,
-        )
-        async with httpx.AsyncClient() as client:
-            result = await poll_snapshot(client, cfg)
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_poll_snapshot_returns_none_on_error(self, httpx_mock):
-        cfg = _prusalink_cfg()
-        httpx_mock.add_exception(
-            httpx.ConnectError("Connection refused"),
-            url=f"{cfg.url}/api/v1/cameras/snap",
-        )
-        async with httpx.AsyncClient() as client:
-            result = await poll_snapshot(client, cfg)
-        assert result is None
 
 
 class TestMoonraker:

@@ -8,7 +8,7 @@ from .config import ProxyConfig, PrinterConfig
 from .models import PrinterStatus
 from .model_names import MODEL_NAMES
 from .adapters import prusalink, moonraker, bambulab
-from .snapshot import png_to_pimg
+from .snapshot import png_to_pimg, grab_rtsp_frame
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +68,8 @@ class Poller:
                             error=f"Unknown type: {cfg.type}"
                         )
                     status.model_name = _resolve_model_name(cfg.model)
-                    if cfg.camera and cfg.type == "prusalink":
-                        png_data = await prusalink.poll_snapshot(client, cfg)
+                    if cfg.camera and cfg.camera_url:
+                        png_data = await grab_rtsp_frame(cfg.camera_url)
                         if png_data:
                             pimg = png_to_pimg(png_data)
                             if pimg:

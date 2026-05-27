@@ -1,12 +1,9 @@
 # ABOUTME: PrusaLink local API adapter.
-# ABOUTME: Polls /api/v1/status, /api/v1/job, and /api/v1/cameras/snap.
+# ABOUTME: Polls /api/v1/status and /api/v1/job, maps to normalized PrinterStatus.
 
-import logging
 import httpx
 from ..models import PrinterStatus
 from ..config import PrinterConfig
-
-logger = logging.getLogger(__name__)
 
 PRUSALINK_STATE_MAP = {
     "IDLE": "idle",
@@ -65,19 +62,6 @@ async def poll(client: httpx.AsyncClient, cfg: PrinterConfig) -> PrinterStatus:
         result.error = raw_state
 
     return result
-
-
-async def poll_snapshot(client: httpx.AsyncClient, cfg: PrinterConfig) -> bytes | None:
-    """Fetch a camera snapshot PNG from PrusaLink. Returns PNG bytes or None."""
-    auth = httpx.DigestAuth(cfg.username, cfg.password) if cfg.password else None
-    try:
-        resp = await client.get(f"{cfg.url}/api/v1/cameras/snap", auth=auth, timeout=10)
-        if resp.status_code == 200:
-            return resp.content
-        return None
-    except Exception as e:
-        logger.debug("Snapshot fetch failed for %s: %s", cfg.id, e)
-        return None
 
 
 def parse_status(data: dict, cfg: PrinterConfig) -> PrinterStatus:

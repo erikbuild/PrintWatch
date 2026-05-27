@@ -1,10 +1,13 @@
-# ABOUTME: Tests for PNG-to-PIMG snapshot conversion.
-# ABOUTME: Verifies dithering, resizing, header format, and bit packing.
+# ABOUTME: Tests for PNG-to-PIMG snapshot conversion and RTSP frame grabbing.
+# ABOUTME: Verifies dithering, resizing, header format, bit packing, and ffmpeg invocation.
 
+import asyncio
 import struct
 from io import BytesIO
+from unittest.mock import AsyncMock, patch, MagicMock
+import pytest
 from PIL import Image
-from proxy.snapshot import png_to_pimg, SNAPSHOT_WIDTH, SNAPSHOT_HEIGHT
+from proxy.snapshot import png_to_pimg, grab_rtsp_frame, SNAPSHOT_WIDTH, SNAPSHOT_HEIGHT
 
 
 def _make_png(width: int, height: int, color: int = 128) -> bytes:
@@ -94,4 +97,56 @@ class TestPngToPimg:
 
     def test_returns_none_for_invalid_input(self):
         result = png_to_pimg(b"not a png")
+        assert result is None
+
+
+class TestGrabRtspFrame:
+    @pytest.mark.asyncio
+    async def test_returns_png_bytes_on_success(self):
+        png_data = _make_png(320, 180)
+        mock_proc = AsyncMock()
+        mock_proc.communicate.return_value = (png_data, b"")
+        mock_proc.returncode = 0
+
+        with patch("proxy.snapshot.asyncio.create_subprocess_exec",
+                    return_value=mock_proc) as mock_exec:
+            result = await grab_rtsp_frame("rtsp://10.0.1.172/live")
+
+        assert result == png_data
+        mock_exec.assert_called_once()
+        args = mock_exec.call_args[0]
+        assert args[0] == "ffmpeg"
+        assert "rtsp://10.0.1.172/live" in args
+
+    @pytest.mark.asyncio
+    async def test_returns_none_on_ffmpeg_failure(self):
+        mock_proc = AsyncMock()
+        mock_proc.communicate.return_value = (b"", b"Connection refused")
+        mock_proc.returncode = 1
+
+        with patch("proxy.snapshot.asyncio.create_subprocess_exec",
+                    return_value=mock_proc):
+            result = await grab_rtsp_frame("rtsp://bad-host/live")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_none_on_timeout(self):
+        mock_proc = AsyncMock()
+        mock_proc.communicate.side_effect = asyncio.TimeoutError()
+        mock_proc.kill = MagicMock()
+
+        with patch("proxy.snapshot.asyncio.create_subprocess_exec",
+                    return_value=mock_proc):
+            result = await grab_rtsp_frame("rtsp://slow-host/live")
+
+        assert result is None
+        mock_proc.kill.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_returns_none_on_exec_error(self):
+        with patch("proxy.snapshot.asyncio.create_subprocess_exec",
+                    side_effect=FileNotFoundError("ffmpeg not found")):
+            result = await grab_rtsp_frame("rtsp://10.0.1.172/live")
+
         assert result is None

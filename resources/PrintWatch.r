@@ -1,8 +1,7 @@
 /* ABOUTME: Rez resource definitions for PrintWatch application.
    ABOUTME: Menus, windows, config strings, alerts, and SIZE resource. */
 
-#include "Dialogs.r"
-#include "Processes.r"
+#include "Types.r"
 #include "PrintWatchIcons.r"
 
 /* Menu bar containing Apple, File, and Options menus */
