@@ -5,6 +5,7 @@ description = "Polling proxy that bridges 3D printer APIs for the PrintWatch Mac
 requires-python = ">=3.12"
 dependencies = [
     "httpx>=0.27",
+    "paho-mqtt>=2.0",
     "pyyaml>=6.0",
 ]
 

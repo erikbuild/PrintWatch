@@ -7,7 +7,7 @@ import httpx
 from .config import ProxyConfig, PrinterConfig
 from .models import PrinterStatus
 from .model_names import MODEL_NAMES
-from .adapters import prusalink, moonraker
+from .adapters import prusalink, moonraker, bambulab
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,7 @@ class Poller:
         self.cache: dict[str, PrinterStatus] = {}
         self._tasks: list[asyncio.Task] = []
         self._metadata_caches: dict[str, dict] = {}
+        self._bambu_connections: dict[str, bambulab.BambuConnection] = {}
 
         for p in config.printers:
             self.cache[p.id] = PrinterStatus(
@@ -30,6 +31,8 @@ class Poller:
             )
             if p.type == "moonraker":
                 self._metadata_caches[p.id] = {}
+            elif p.type == "bambulab":
+                self._bambu_connections[p.id] = bambulab.BambuConnection(p)
 
     async def start(self):
         for p in self.config.printers:
@@ -42,6 +45,8 @@ class Poller:
             task.cancel()
         await asyncio.gather(*self._tasks, return_exceptions=True)
         self._tasks.clear()
+        for conn in self._bambu_connections.values():
+            conn.disconnect()
 
     async def _poll_loop(self, cfg: PrinterConfig):
         async with httpx.AsyncClient() as client:
@@ -52,6 +57,9 @@ class Poller:
                     elif cfg.type == "moonraker":
                         meta_cache = self._metadata_caches.get(cfg.id, {})
                         status = await moonraker.poll(client, cfg, meta_cache)
+                    elif cfg.type == "bambulab":
+                        conn = self._bambu_connections[cfg.id]
+                        status = await bambulab.poll(client, cfg, conn)
                     else:
                         status = PrinterStatus(
                             id=cfg.id, name=cfg.name, type=cfg.type, state="offline",

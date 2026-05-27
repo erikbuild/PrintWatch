@@ -13,6 +13,7 @@ class PrinterConfig:
     type: str
     url: str
     model: str = ""
+    serial: str = ""
     username: str = ""
     password: str = ""
     api_key: str = ""
@@ -44,7 +45,7 @@ def load_config(path: str) -> ProxyConfig:
     for p in raw.get("printers", []):
         if not p.get("id") or not p.get("type") or not p.get("url"):
             raise ValueError(f"Printer entry missing required fields: {p}")
-        if p["type"] not in ("prusalink", "moonraker"):
+        if p["type"] not in ("prusalink", "moonraker", "bambulab"):
             raise ValueError(f"Unknown printer type: {p['type']}")
         config.printers.append(PrinterConfig(
             id=p["id"],
@@ -52,6 +53,7 @@ def load_config(path: str) -> ProxyConfig:
             type=p["type"],
             url=p["url"].rstrip("/"),
             model=p.get("model", ""),
+            serial=p.get("serial", ""),
             username=p.get("username", ""),
             password=p.get("password", ""),
             api_key=p.get("api_key", ""),

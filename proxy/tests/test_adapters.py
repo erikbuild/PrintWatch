@@ -1,10 +1,11 @@
-# ABOUTME: Tests for PrusaLink and Moonraker API adapters.
+# ABOUTME: Tests for PrusaLink, Moonraker, and Bambu Lab API adapters.
 # ABOUTME: Uses fixture JSON to verify state mapping, temp extraction, and progress.
 
 import json
 import os
 from proxy.adapters.prusalink import parse_status, PRUSALINK_STATE_MAP
 from proxy.adapters.moonraker import parse_objects_query, MOONRAKER_STATE_MAP
+from proxy.adapters.bambulab import parse_report, merge_state, BAMBU_STATE_MAP
 from proxy.config import PrinterConfig
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
@@ -24,6 +25,12 @@ def _prusalink_cfg() -> PrinterConfig:
 def _moonraker_cfg() -> PrinterConfig:
     return PrinterConfig(id="voron", name="Voron 2.4", type="moonraker",
                          url="http://192.168.1.60:7125", model="V2.4r2")
+
+
+def _bambulab_cfg() -> PrinterConfig:
+    return PrinterConfig(id="p1s", name="Bambu P1S", type="bambulab",
+                         url="192.168.1.70", model="p1s",
+                         serial="01P00A000000000", password="12345678")
 
 
 class TestPrusaLink:
@@ -126,3 +133,63 @@ class TestMoonraker:
         result = parse_objects_query(data, _moonraker_cfg())
         assert isinstance(result.nozzle_temp, int)
         assert isinstance(result.bed_temp, int)
+
+
+class TestBambuLab:
+    def test_model_passed_through(self):
+        data = _load_fixture("bambulab_report_printing.json")
+        result = parse_report(data, _bambulab_cfg())
+        assert result.model == "p1s"
+
+    def test_printing_state(self):
+        data = _load_fixture("bambulab_report_printing.json")
+        result = parse_report(data, _bambulab_cfg())
+        assert result.state == "printing"
+        assert result.progress == 45
+        assert result.job == "benchy.3mf"
+        assert result.nozzle_temp == 220
+        assert result.nozzle_target == 220
+        assert result.bed_temp == 60
+        assert result.bed_target == 60
+
+    def test_idle_state(self):
+        data = _load_fixture("bambulab_report_idle.json")
+        result = parse_report(data, _bambulab_cfg())
+        assert result.state == "idle"
+        assert result.progress == 0
+        assert result.job == ""
+        assert result.nozzle_temp == 24
+        assert result.bed_temp == 22
+
+    def test_all_state_mappings(self):
+        for raw, expected in BAMBU_STATE_MAP.items():
+            data = {"print": {"gcode_state": raw}}
+            result = parse_report(data, _bambulab_cfg())
+            assert result.state == expected, f"{raw} -> {result.state}, expected {expected}"
+
+    def test_error_state(self):
+        data = {"print": {"gcode_state": "FAILED", "print_error": 318767105}}
+        result = parse_report(data, _bambulab_cfg())
+        assert result.state == "error"
+        assert result.error != ""
+
+    def test_temps_are_integers(self):
+        data = _load_fixture("bambulab_report_printing.json")
+        result = parse_report(data, _bambulab_cfg())
+        assert isinstance(result.nozzle_temp, int)
+        assert isinstance(result.bed_temp, int)
+
+    def test_time_remaining_in_seconds(self):
+        data = _load_fixture("bambulab_report_printing.json")
+        result = parse_report(data, _bambulab_cfg())
+        assert result.time_remaining == 67 * 60
+
+    def test_delta_merge(self):
+        base = {"gcode_state": "RUNNING", "mc_percent": 45,
+                "nozzle_temper": 220.0, "bed_temper": 60.0}
+        delta = {"mc_percent": 50, "nozzle_temper": 221.0}
+        merged = merge_state(base, delta)
+        assert merged["mc_percent"] == 50
+        assert merged["nozzle_temper"] == 221.0
+        assert merged["gcode_state"] == "RUNNING"
+        assert merged["bed_temper"] == 60.0

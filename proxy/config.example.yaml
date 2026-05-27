@@ -29,3 +29,11 @@ printers:
     model: "K1"
     url: "http://192.168.1.61:7125"
     api_key: "your-api-key-here"
+
+  - id: "p1s"
+    name: "Bambu P1S"
+    type: "bambulab"
+    model: "p1s"
+    url: "192.168.1.70"           # printer IP (MQTT, not HTTP)
+    serial: "01P00A000000000"     # printer serial number
+    password: "12345678"          # LAN Access Code from printer screen
