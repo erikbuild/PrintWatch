@@ -5,18 +5,18 @@ Copyright (c) 2026 Erik Reynolds (@erikbuild)
 This project is licensed under the Open Community License v1.1 with the
 Software Attribution v1 add-on condition.
 
-Full license text: https://github.com/OpenCommunityLicence/OpenCommunityLicence/tree/release/v1.1
+Full license text: https://github.com/OpenCommunityLicence/OpenCommunityLicence/releases/tag/v1.1
 
 ---
 
 Open Community License (OCL v1.1)
 
-OCL pertains to intellectual property applied in licensor's product (licensed
+OCL pertains to intellectual property applied in licensor‘s product (licensed
 item - hardware and/or software) and/or its components which is distributed as
 is under OCL, including copyright, registered design or design patent, and
 (utility) patent.
 
-All licensor's copyrights, designs, and patents as far as relevant to products
+All licensor‘s copyrights, designs, and patents as far as relevant to products
 and/or its components under OCL are COMMUNITY-OPEN, as the aim of OCL is to
 allow open access to relevant community including the essential right, the
 right-to-repair, by giving users complete freedom of use, copy, modification,
@@ -50,7 +50,7 @@ YOU MUST NOT copy or in any way replicate the product and/or its components
 and/or its derivatives for any commercial purpose excluding your internal
 right-to-repair without obtaining a separate business license or repair license.
 
-Licensor's products and/or its components under OCL MUST NOT BE subject to any
+Licensor‘s products and/or its components under OCL MUST NOT BE subject to any
 systematic or automated text and/or data mining or other text and/or data
 collection activity in relation to the product without explicit permission.
 
@@ -71,7 +71,8 @@ directory. For available add-on conditions, see the addons/ directory.
 Software Attribution (SWAtt v1)
 
 SWAtt serves solely as an add-on condition for OCL distribution and is effective
-only if specifically referenced in said OCL distribution. Such add-on only adds
+only if specifically referenced in said OCL distribution (OCL v* + SWAtt v1 or
+Open Community License v* + Software Attribution v1). Such add-on only adds
 further binding license condition without any change or invalidation of any part
 of OCL.
 
